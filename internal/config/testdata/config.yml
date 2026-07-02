@@ -1,0 +1,9 @@
+channels:
+  infra: "111"
+  network: "111"
+  media: "222"
+  downloads: "222"
+fallback: "111"
+renotify_every: 4h
+reaper_grace: 20m
+snooze_options: [15m, 1h, 4h]

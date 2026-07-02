@@ -1,0 +1,9 @@
+channels:
+  infra: "123456789"
+  network: "123456789"
+  media: "234567890"
+  downloads: "234567890"
+fallback: "123456789"
+renotify_every: 4h
+reaper_grace: 20m
+snooze_options: [15m, 1h, 4h]
