@@ -137,6 +137,17 @@ func (s *Store) DueForRenotify(now, cutoff time.Time) ([]*Incident, error) {
 		now.Unix(), cutoff.Unix())
 }
 
+// NeedingConverge returns rows whose confirmed discord state may differ from desired.
+func (s *Store) NeedingConverge() ([]*Incident, error) {
+	return s.scanMany(`select ` + cols + ` from incidents
+        where confirmed=0 or stale_message_id<>'' or (desired_present=0 and message_id<>'')`)
+}
+
+// ByKey returns the incident regardless of status (the converger needs resolved rows).
+func (s *Store) ByKey(key string) (*Incident, error) {
+	return s.scanOne(`select `+cols+` from incidents where dedup_key=?`, key)
+}
+
 func (s *Store) MarkAllUnconfirmed() error {
 	_, err := s.db.Exec(`update incidents set confirmed=0, version=version+1 where status='active'`)
 	return err
