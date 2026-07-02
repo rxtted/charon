@@ -140,8 +140,8 @@ func expandDuration(s string, created time.Time) string {
 	return strings.ReplaceAll(s, "{duration}", card.Short(time.Since(created)))
 }
 
-// wrapText hard-wraps on word boundaries so a long description grows the card
-// down rather than stretching it to discord's max width.
+// discord has no width control on a text display: a long paragraph fills the
+// message to its max width. wrapText hard-wraps the body to a column to bound it.
 func wrapText(s string, width int) string {
 	var lines []string
 	var line string

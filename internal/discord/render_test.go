@@ -8,8 +8,8 @@ import (
 	"github.com/rxtted/charon/internal/card"
 )
 
-// walk yields every component in mc, recursing into containers/action rows via
-// the ComponentIter interface disgo's builders implement.
+// walk yields every component in mc, recursing into containers/sections/action rows
+// via the ComponentIter interface disgo's builders implement.
 func walk(components []dgo.LayoutComponent) []dgo.Component {
 	var out []dgo.Component
 	for _, c := range components {
@@ -26,11 +26,33 @@ func walk(components []dgo.LayoutComponent) []dgo.Component {
 func customIDs(mc dgo.MessageCreate) []string {
 	var ids []string
 	for _, c := range walk(mc.Components) {
-		if b, ok := c.(dgo.ButtonComponent); ok {
+		if b, ok := c.(dgo.ButtonComponent); ok && b.CustomID != "" {
 			ids = append(ids, b.CustomID)
 		}
 	}
 	return ids
+}
+
+// thumbnailURLs pulls the section-accessory thumbnails, so a test can tell whether
+// the hybrid icon rule actually attached one (renderText can't, it's not text).
+func thumbnailURLs(mc dgo.MessageCreate) []string {
+	var urls []string
+	for _, c := range walk(mc.Components) {
+		if th, ok := c.(dgo.ThumbnailComponent); ok {
+			urls = append(urls, th.Media.URL)
+		}
+	}
+	return urls
+}
+
+func linkButtonURLs(mc dgo.MessageCreate) []string {
+	var urls []string
+	for _, c := range walk(mc.Components) {
+		if b, ok := c.(dgo.ButtonComponent); ok && b.URL != "" {
+			urls = append(urls, b.URL)
+		}
+	}
+	return urls
 }
 
 func renderText(mc dgo.MessageCreate) string {
@@ -90,11 +112,11 @@ func TestRenderShowsAck(t *testing.T) {
 func TestRenderBareCardDropsIcon(t *testing.T) {
 	r := card.Rendered{Title: "Nightly backup completed", Severity: "Info", Icon: "https://x/i.png",
 		Footer: []string{"restic"}}
-	txt := renderText(RenderCreate(r, 52))
-	if strings.Contains(txt, "https://x/i.png") {
-		t.Fatal("bare card (no description/glance/data) must not render the thumbnail")
+	mc := RenderCreate(r, 52)
+	if len(thumbnailURLs(mc)) != 0 {
+		t.Fatalf("bare card (no description/glance/data) must drop the thumbnail, got %v", thumbnailURLs(mc))
 	}
-	if !strings.Contains(txt, "### Nightly backup completed") {
+	if !strings.Contains(renderText(mc), "### Nightly backup completed") {
 		t.Fatal("title should render as a heading")
 	}
 }
@@ -102,18 +124,27 @@ func TestRenderBareCardDropsIcon(t *testing.T) {
 func TestRenderKeepsIconWhenFilled(t *testing.T) {
 	r := card.Rendered{Title: "GPU hot", Severity: "Warning", Icon: "https://x/i.png",
 		Glance: []card.GlanceItem{{Value: "temp = 88", Code: true}}}
-	txt := renderText(RenderCreate(r, 52))
-	if !strings.Contains(txt, "`temp = 88`") {
+	mc := RenderCreate(r, 52)
+	if !contains(thumbnailURLs(mc), "https://x/i.png") {
+		t.Fatalf("a filled card must render the thumbnail, got %v", thumbnailURLs(mc))
+	}
+	if !strings.Contains(renderText(mc), "`temp = 88`") {
 		t.Fatal("code glance item must render in inline code")
 	}
 }
 
 func TestRenderButtonsAndLinks(t *testing.T) {
-	r := card.Rendered{Title: "t", Severity: "Critical", Description: "d",
+	r := card.Rendered{Title: "t", Severity: "Critical", Description: "d", DedupKey: "k9",
 		Links: []card.Link{{Label: "Open", URL: "https://g/1"}}}
-	txt := renderText(RenderCreate(r, 52))
-	if !strings.Contains(txt, "**Critical**") {
-		t.Fatal("severity should lead the glance")
+	mc := RenderCreate(r, 52)
+	ids := customIDs(mc)
+	for _, want := range []string{"/ack/k9", "/snooze/k9", "/resolve/k9"} {
+		if !contains(ids, want) {
+			t.Fatalf("missing lifecycle button %q in %v", want, ids)
+		}
+	}
+	if !contains(linkButtonURLs(mc), "https://g/1") {
+		t.Fatalf("configured link button missing, got %v", linkButtonURLs(mc))
 	}
 }
 
