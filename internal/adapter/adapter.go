@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/rotten-division/charon/internal/event"
+	"github.com/rxttd/cheron/internal/event"
 )
 
 var ErrNotMatched = errors.New("adapter did not match the request body")

@@ -15,9 +15,8 @@
       - ./charon-config:/config:ro
       - ./charon-data:/data
     ports:
-      # publish ingest to this host's LAN ip (so other hosts can post) and to loopback
-      # for a same-host reverse proxy; metrics stay on loopback for the prometheus scrape.
-      - "10.0.0.10:8000:8000"   # replace with the host's LAN ip
+      # loopback here; the container listens on :8000, so publishing ingest to a host's
+      # LAN ip (so other hosts can post) is a deployment choice, not baked into the image.
       - "127.0.0.1:8000:8000"
       - "127.0.0.1:9095:9095"
     logging: *default-logging

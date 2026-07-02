@@ -12,7 +12,7 @@ import (
 	"github.com/disgoorg/disgo/handler"
 	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
-	"github.com/rotten-division/charon/internal/config"
+	"github.com/rxttd/cheron/internal/config"
 )
 
 type Actions interface {

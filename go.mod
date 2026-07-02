@@ -1,4 +1,4 @@
-module github.com/rotten-division/charon
+module github.com/rxttd/cheron
 
 go 1.25.0
 

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rotten-division/charon/internal/config"
-	"github.com/rotten-division/charon/internal/event"
-	"github.com/rotten-division/charon/internal/lock"
-	"github.com/rotten-division/charon/internal/store"
+	"github.com/rxttd/cheron/internal/config"
+	"github.com/rxttd/cheron/internal/event"
+	"github.com/rxttd/cheron/internal/lock"
+	"github.com/rxttd/cheron/internal/store"
 )
 
 type Waker interface{ Wake() }

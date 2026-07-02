@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rotten-division/charon/internal/config"
-	"github.com/rotten-division/charon/internal/lock"
+	"github.com/rxttd/cheron/internal/config"
+	"github.com/rxttd/cheron/internal/lock"
 )
 
 func TestReaperClosesStaleHeartbeat(t *testing.T) {

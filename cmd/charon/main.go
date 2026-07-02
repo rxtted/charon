@@ -12,16 +12,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rotten-division/charon/internal/adapter"
-	_ "github.com/rotten-division/charon/internal/adapter/native" // self-register
-	"github.com/rotten-division/charon/internal/config"
-	"github.com/rotten-division/charon/internal/discord"
-	"github.com/rotten-division/charon/internal/event"
-	"github.com/rotten-division/charon/internal/incident"
-	"github.com/rotten-division/charon/internal/ingest"
-	"github.com/rotten-division/charon/internal/lock"
-	"github.com/rotten-division/charon/internal/metrics"
-	"github.com/rotten-division/charon/internal/store"
+	"github.com/rxttd/cheron/internal/adapter"
+	_ "github.com/rxttd/cheron/internal/adapter/native" // self-register
+	"github.com/rxttd/cheron/internal/config"
+	"github.com/rxttd/cheron/internal/discord"
+	"github.com/rxttd/cheron/internal/event"
+	"github.com/rxttd/cheron/internal/incident"
+	"github.com/rxttd/cheron/internal/ingest"
+	"github.com/rxttd/cheron/internal/lock"
+	"github.com/rxttd/cheron/internal/metrics"
+	"github.com/rxttd/cheron/internal/store"
 )
 
 func main() {

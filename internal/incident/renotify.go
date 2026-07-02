@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/rotten-division/charon/internal/config"
-	"github.com/rotten-division/charon/internal/lock"
-	"github.com/rotten-division/charon/internal/store"
+	"github.com/rxttd/cheron/internal/config"
+	"github.com/rxttd/cheron/internal/lock"
+	"github.com/rxttd/cheron/internal/store"
 )
 
 type Renotifier struct {
