@@ -85,7 +85,14 @@ func merge(base, over Style) Style {
 		out.Links = over.Links
 	}
 	if over.Accent != nil {
-		out.Accent = over.Accent
+		merged := make(map[string]string, len(out.Accent)+len(over.Accent))
+		for sev, hex := range out.Accent {
+			merged[sev] = hex
+		}
+		for sev, hex := range over.Accent {
+			merged[sev] = hex
+		}
+		out.Accent = merged
 	}
 	if over.Wrap != nil {
 		out.Wrap = over.Wrap

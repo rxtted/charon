@@ -25,3 +25,17 @@ func TestResolveLayers(t *testing.T) {
 		t.Fatalf("unknown source did not fall to default: %+v", u)
 	}
 }
+
+func TestResolveMergesAccentPerSeverity(t *testing.T) {
+	set := NewSet(map[string]Style{
+		"default": {Accent: map[string]string{"critical": "AAAAAA"}},
+		"grafana": {Accent: map[string]string{"warning": "BBBBBB"}},
+	})
+	g := set.Resolve("grafana")
+	if g.Accent["critical"] != "AAAAAA" {
+		t.Fatalf("default critical accent lost after a sender overrode only warning: %v", g.Accent)
+	}
+	if g.Accent["warning"] != "BBBBBB" {
+		t.Fatalf("sender warning accent not applied: %v", g.Accent)
+	}
+}
