@@ -9,6 +9,7 @@ import (
 
 	"github.com/disgoorg/disgo/rest"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rxtted/charon/internal/card"
 	"github.com/rxtted/charon/internal/lock"
 	"github.com/rxtted/charon/internal/store"
 )
@@ -18,15 +19,17 @@ import (
 const reconcileTimeout = 15 * time.Second
 
 type Converger struct {
-	store *store.Store
-	q     *Queue
-	coord *lock.Keyed
-	wake  chan struct{}
-	errs  prometheus.Counter
+	store  *store.Store
+	q      *Queue
+	coord  *lock.Keyed
+	wake   chan struct{}
+	errs   prometheus.Counter
+	styles card.Set
+	wrap   int
 }
 
-func NewConverger(s *store.Store, q *Queue, coord *lock.Keyed, errs prometheus.Counter) *Converger {
-	return &Converger{store: s, q: q, coord: coord, wake: make(chan struct{}, 1), errs: errs}
+func NewConverger(s *store.Store, q *Queue, coord *lock.Keyed, errs prometheus.Counter, styles card.Set, wrap int) *Converger {
+	return &Converger{store: s, q: q, coord: coord, wake: make(chan struct{}, 1), errs: errs, styles: styles, wrap: wrap}
 }
 
 // Wake is a non-blocking nudge; a pending wake coalesces.
@@ -97,14 +100,16 @@ func (c *Converger) reconcile(ctx context.Context, in *store.Incident) error {
 	}
 	switch {
 	case in.DesiredPresent && in.MessageID == "":
-		id, err := c.q.Post(ctx, in.ChannelID, RenderCreate(in))
+		r := card.Build(in, c.styles.Resolve(in.Source))
+		id, err := c.q.Post(ctx, in.ChannelID, RenderCreate(r, c.wrap))
 		if err != nil {
 			return err
 		}
 		now := time.Now()
 		in.MessageID, in.Confirmed, in.LastNotifiedAt = id, true, &now
 	case in.DesiredPresent && !in.Confirmed:
-		if err := c.q.Edit(ctx, in.ChannelID, in.MessageID, RenderUpdate(in)); err != nil {
+		r := card.Build(in, c.styles.Resolve(in.Source))
+		if err := c.q.Edit(ctx, in.ChannelID, in.MessageID, RenderUpdate(r, c.wrap)); err != nil {
 			if !isNotFound(err) {
 				return err
 			}

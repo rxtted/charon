@@ -9,6 +9,7 @@ import (
 
 	"github.com/disgoorg/disgo/rest"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rxtted/charon/internal/card"
 	"github.com/rxtted/charon/internal/lock"
 	"github.com/rxtted/charon/internal/store"
 )
@@ -22,7 +23,7 @@ func newConv(t *testing.T) (*Converger, *store.Store, *fakeSender) {
 	t.Cleanup(func() { s.Close() })
 	f := &fakeSender{}
 	errs := prometheus.NewCounter(prometheus.CounterOpts{Name: "test_converge_errors"})
-	return NewConverger(s, NewQueue(f, time.Millisecond, 100), lock.New(), errs), s, f
+	return NewConverger(s, NewQueue(f, time.Millisecond, 100), lock.New(), errs, card.NewSet(nil), 52), s, f
 }
 
 func TestReconcilePosts(t *testing.T) {

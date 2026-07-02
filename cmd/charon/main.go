@@ -49,7 +49,7 @@ func run() error {
 	}
 	q := discord.NewQueue(b.Sender(), 1100*time.Millisecond, 1) // about one create per 1.1s per channel
 	coord := lock.New()                                         // one shared per-key lock for every mutator
-	conv := discord.NewConverger(st, q, coord, m.ConvergeErrors)
+	conv := discord.NewConverger(st, q, coord, m.ConvergeErrors, cfg.Styles, cfg.CardWrap)
 	core := incident.New(st, cfg, coord, conv)
 	b.SetActions(core) // core satisfies discord.Actions
 
