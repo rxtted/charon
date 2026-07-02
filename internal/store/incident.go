@@ -119,6 +119,17 @@ func (s *Store) ActiveByKey(key string) (*Incident, error) {
 	return s.scanOne(`select `+cols+` from incidents where dedup_key=? and status='active'`, key)
 }
 
+// DueForRenotify returns active, unacked incidents with a live message, no repost
+// already staged, whose snooze (if any) has lapsed and whose last notify is older
+// than cutoff.
+func (s *Store) DueForRenotify(now, cutoff time.Time) ([]*Incident, error) {
+	return s.scanMany(`select `+cols+` from incidents
+        where status='active' and acked_at is null and message_id<>'' and stale_message_id=''
+        and (snoozed_until is null or snoozed_until<=?)
+        and (last_notified_at is null or last_notified_at<=?)`,
+		now.Unix(), cutoff.Unix())
+}
+
 func (s *Store) scanOne(query string, args ...any) (*Incident, error) {
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -129,6 +140,23 @@ func (s *Store) scanOne(query string, args ...any) (*Incident, error) {
 		return nil, rows.Err()
 	}
 	return scan(rows)
+}
+
+func (s *Store) scanMany(query string, args ...any) ([]*Incident, error) {
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var incidents []*Incident
+	for rows.Next() {
+		in, err := scan(rows)
+		if err != nil {
+			return nil, err
+		}
+		incidents = append(incidents, in)
+	}
+	return incidents, rows.Err()
 }
 
 func scan(rows *sql.Rows) (*Incident, error) {
