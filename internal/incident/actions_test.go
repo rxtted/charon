@@ -13,7 +13,7 @@ func TestAcknowledgeStamps(t *testing.T) {
 		t.Fatal(err)
 	}
 	in, _ := s.ActiveByKey("k")
-	if in.AckedAt == nil || derefStr(in.AckedBy) != "noah" || in.Confirmed {
+	if in.AckedAt == nil || *in.AckedBy != "noah" || in.Confirmed {
 		t.Fatalf("ack not applied: %+v", in)
 	}
 }

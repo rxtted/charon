@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rxtted/charon/internal/card"
 	"github.com/rxtted/charon/internal/config"
 	"github.com/rxtted/charon/internal/event"
 	"github.com/rxtted/charon/internal/lock"
@@ -131,22 +132,27 @@ func TestResolveUnknownNoOp(t *testing.T) {
 
 // every field the renderer shows must change displayHash, or a repeat firing
 // would render new content but never mark the card unconfirmed, so no edit fires.
-func TestDisplayHashFields(t *testing.T) {
-	base := &store.Incident{Severity: "warning", Title: "t", Body: "b", Host: "h"}
-	h0 := displayHash(base)
+func TestContentHashFields(t *testing.T) {
+	styles := card.NewSet(map[string]card.Style{
+		"default": {Footer: []string{"{host}", "{link}"}},
+	})
+	c := &Core{cfg: config.Config{Styles: styles}}
+	base := &store.Incident{Severity: "warning", Title: "t", Body: "b", Host: "h", CreatedAt: time.Unix(0, 0)}
+	h0 := c.contentHash(base)
+
 	mutate := []func(*store.Incident){
 		func(i *store.Incident) { i.Severity = "critical" },
 		func(i *store.Incident) { i.Title = "x" },
 		func(i *store.Incident) { i.Body = "x" },
 		func(i *store.Incident) { i.Host = "x" },
-		func(i *store.Incident) { i.Labels = map[string]string{"k": "v"} },
+		func(i *store.Incident) { i.Link = "https://x/2" },
 		func(i *store.Incident) { now := time.Now(); who := "n"; i.AckedAt, i.AckedBy = &now, &who },
 		func(i *store.Incident) { u := time.Now(); i.SnoozedUntil = &u },
 	}
 	for idx, m := range mutate {
-		c := *base
-		m(&c)
-		if displayHash(&c) == h0 {
+		cp := *base
+		m(&cp)
+		if c.contentHash(&cp) == h0 {
 			t.Fatalf("mutator %d changed a rendered field but not the hash", idx)
 		}
 	}
