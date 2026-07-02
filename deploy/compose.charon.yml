@@ -1,5 +1,5 @@
   charon:
-    image: charon:local
+    image: ghcr.io/rxtted/charon:latest
     container_name: charon
     restart: unless-stopped
     env_file:
@@ -15,8 +15,6 @@
       - ./charon-config:/config:ro
       - ./charon-data:/data
     ports:
-      # loopback here; the container listens on :8000, so publishing ingest to a host's
-      # LAN ip (so other hosts can post) is a deployment choice, not baked into the image.
-      - "127.0.0.1:8000:8000"
-      - "127.0.0.1:9095:9095"
+      - "8000:8000"   # ingest
+      - "9095:9095"   # prometheus metrics
     logging: *default-logging

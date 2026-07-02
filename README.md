@@ -14,11 +14,13 @@ it exists to replace a stateless webhook fan-out. a webhook is send-only, so it 
 
     CGO_ENABLED=0 go build ./cmd/charon
 
-or the container (static, targets arm64):
+needs go 1.25, the floor the sqlite driver sets.
+
+## image
+
+published to ghcr for `linux/amd64` and `linux/arm64`: `ghcr.io/rxtted/charon:latest` tracks releases, `:nightly` tracks `main`, and each release is also tagged `:vX.Y.Z`. the compose in `deploy/` pulls `:latest`. to build it yourself instead:
 
     docker build -t charon .
-
-needs go 1.25, the floor the sqlite driver sets.
 
 ## run
 
