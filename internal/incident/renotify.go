@@ -28,7 +28,10 @@ func (r *Renotifier) Sweep(now time.Time) error {
 	for _, in := range due {
 		release := r.coord.Lock(in.DedupKey)
 		fresh, err := r.store.ActiveByKey(in.DedupKey)
-		if err != nil || fresh == nil || fresh.AckedAt != nil || fresh.MessageID == "" {
+		// re-verify under the lock: a concurrent ack or snooze (same key lock)
+		// could have landed since the unlocked batch select.
+		if err != nil || fresh == nil || fresh.AckedAt != nil || fresh.MessageID == "" ||
+			(fresh.SnoozedUntil != nil && fresh.SnoozedUntil.After(now)) {
 			release()
 			continue
 		}
