@@ -9,3 +9,27 @@ fallback: "000000000000000001"
 renotify_every: 4h       # re-ping an unacked, unsnoozed incident this often
 reaper_grace: 20m        # auto-close a heartbeat-backed incident that stops re-firing
 snooze_options: [15m, 1h, 4h]
+
+# per-sender card styling, keyed on the event's `source`. optional: a source with
+# no block renders the built-in default; `default` overrides that; a named block
+# overrides per source. placeholders: {title} {body} {source} {host} {severity}
+# {time} {duration} {link} {labels.<key>}. long descriptions wrap at card_wrap.
+card_wrap: 52
+senders:
+  default:
+    footer: ["{host}", "{source}", "{time}"]
+  monitor:
+    icon: "https://example.com/icons/monitor.png"
+    wrap: 60                                # override the global card_wrap for this source
+    glance:
+      - { value: "{labels.condition}", code: true }
+    footer: ["{host}", "{source}", "{duration}"]
+    links:
+      - { label: "Open dashboard", url: "{link}" }
+  jobs:
+    glance:
+      - { value: "{labels.status}" }        # human phrase, no code
+    data:
+      - { label: "Job", value: "{labels.job}" }
+      - { label: "Size", value: "{labels.size}" }
+    footer: ["{source}", "{time}"]

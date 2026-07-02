@@ -5,6 +5,18 @@ import (
 	"time"
 )
 
+func TestExampleConfigLoads(t *testing.T) {
+	lookup := func(k string) (string, bool) {
+		if k == "CHARON_DISCORD_TOKEN" {
+			return "x", true
+		}
+		return "", false
+	}
+	if _, err := Load(lookup, "../../config.example.yml"); err != nil {
+		t.Fatalf("example config rejected: %v", err)
+	}
+}
+
 func TestLoadMergesEnvAndYAML(t *testing.T) {
 	env := map[string]string{
 		"CHARON_DISCORD_TOKEN": "tok",
