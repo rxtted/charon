@@ -44,7 +44,7 @@ func renderText(mc dgo.MessageCreate) string {
 	return strings.Join(parts, "\n")
 }
 
-func TestRenderCreateHasV2FlagAndButtons(t *testing.T) {
+func TestRenderCreate(t *testing.T) {
 	in := &store.Incident{DedupKey: "k1", Severity: "critical", Title: "host down", Host: "host-a"}
 	mc := RenderCreate(in)
 	if mc.Flags&flagV2 == 0 {
@@ -73,10 +73,10 @@ func contains(ss []string, s string) bool {
 	return false
 }
 
-// TestRenderAllowedMentionsIsEmpty: incident cards render attacker-
+// incident cards render attacker-
 // controlled ingest text, so both create and update messages must carry a
 // non-nil, empty AllowedMentions that parses nothing out of that text.
-func TestRenderAllowedMentionsIsEmpty(t *testing.T) {
+func TestRenderNoMentions(t *testing.T) {
 	in := &store.Incident{DedupKey: "k", Severity: "critical", Title: "@everyone t"}
 	create := RenderCreate(in)
 	if create.AllowedMentions == nil {

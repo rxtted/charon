@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestNativeParsesSingleEvent(t *testing.T) {
+func TestParsesSingle(t *testing.T) {
 	body := `{"source":"grafana","dedup_key":"k","status":"firing","severity":"critical","channel":"infra","title":"host down"}`
 	r := httptest.NewRequest("POST", "/ingest", strings.NewReader(body))
 	a := New()
@@ -22,7 +22,7 @@ func TestNativeParsesSingleEvent(t *testing.T) {
 	}
 }
 
-func TestNativeParsesBatch(t *testing.T) {
+func TestParsesBatch(t *testing.T) {
 	body := `[{"status":"firing","channel":"infra","title":"a"},{"status":"firing","channel":"apps","title":"b"}]`
 	r := httptest.NewRequest("POST", "/ingest", strings.NewReader(body))
 	evs, err := New().Match(r)
@@ -31,7 +31,7 @@ func TestNativeParsesBatch(t *testing.T) {
 	}
 }
 
-func TestNativeRejectsGarbage(t *testing.T) {
+func TestRejectsGarbage(t *testing.T) {
 	r := httptest.NewRequest("POST", "/ingest", strings.NewReader("not json"))
 	if _, err := New().Match(r); err == nil {
 		t.Fatal("expected error on malformed body")

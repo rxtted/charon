@@ -16,7 +16,7 @@ func TestNormalizeDefaults(t *testing.T) {
 	}
 }
 
-func TestDeriveKeyStableAndDistinct(t *testing.T) {
+func TestDeriveKeyStable(t *testing.T) {
 	a := DeriveKey("prometheus", "alerts", "disk usage high")
 	if a != DeriveKey("prometheus", "alerts", "disk usage high") {
 		t.Fatal("derive is not stable across calls")

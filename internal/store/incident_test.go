@@ -17,7 +17,7 @@ func newStore(t *testing.T) *Store {
 	return s
 }
 
-func TestInsertAndActiveByKey(t *testing.T) {
+func TestInsertActiveByKey(t *testing.T) {
 	s := newStore(t)
 	in := &Incident{DedupKey: "k1", Channel: "infra", Severity: "warning", Status: "active", Version: 1, Title: "t", CreatedAt: time.Now()}
 	if err := s.Insert(in); err != nil {
@@ -36,7 +36,7 @@ func TestInsertAndActiveByKey(t *testing.T) {
 	}
 }
 
-// TestActiveMessageIDs: the boot orphan sweep's keep-list must include
+// the boot orphan sweep's keep-list must include
 // only live cards of active incidents; resolved rows and unposted ones don't belong.
 func TestActiveMessageIDs(t *testing.T) {
 	s := newStore(t)
@@ -60,7 +60,7 @@ func TestActiveMessageIDs(t *testing.T) {
 	}
 }
 
-func TestUpdateRejectsStaleVersion(t *testing.T) {
+func TestUpdateRejectsStale(t *testing.T) {
 	s := newStore(t)
 	in := &Incident{DedupKey: "k1", Channel: "infra", Severity: "warning", Status: "active", Version: 1, Title: "t", CreatedAt: time.Now()}
 	if err := s.Insert(in); err != nil {

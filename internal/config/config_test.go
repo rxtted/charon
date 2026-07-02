@@ -29,7 +29,7 @@ func TestLoadMergesEnvAndYAML(t *testing.T) {
 	}
 }
 
-// TestAllChannelIDsDedupes: the boot orphan sweep needs every
+// the boot orphan sweep needs every
 // distinct channel id, routed or fallback, exactly once.
 func TestAllChannelIDsDedupes(t *testing.T) {
 	env := map[string]string{"CHARON_DISCORD_TOKEN": "tok"}

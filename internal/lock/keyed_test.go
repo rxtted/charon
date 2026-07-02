@@ -12,7 +12,7 @@ func (k *Keyed) len() int {
 	return n
 }
 
-func TestKeyedEvictsReleasedKeys(t *testing.T) {
+func TestEvictsReleasedKeys(t *testing.T) {
 	k := New()
 	for i := 0; i < 50; i++ {
 		release := k.Lock(fmt.Sprintf("key-%d", i))
@@ -23,7 +23,7 @@ func TestKeyedEvictsReleasedKeys(t *testing.T) {
 	}
 }
 
-func TestKeyedEvictsAfterContention(t *testing.T) {
+func TestConcurrentEviction(t *testing.T) {
 	k := New()
 	release1 := k.Lock("shared")
 	done := make(chan func())

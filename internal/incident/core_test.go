@@ -34,7 +34,7 @@ func fire(ch, key string) event.Event {
 	return e
 }
 
-func TestFiringCreatesActiveIncident(t *testing.T) {
+func TestFiringCreatesIncident(t *testing.T) {
 	c, s, w := newCore(t)
 	if err := c.Handle(context.Background(), fire("infra", "k")); err != nil {
 		t.Fatal(err)
@@ -51,7 +51,7 @@ func TestFiringCreatesActiveIncident(t *testing.T) {
 	}
 }
 
-func TestRepeatFiringSetsHeartbeatNoSecondRow(t *testing.T) {
+func TestRepeatFiringNoNewRow(t *testing.T) {
 	c, s, _ := newCore(t)
 	c.Handle(context.Background(), fire("infra", "k"))
 	c.Handle(context.Background(), fire("infra", "k"))
@@ -66,7 +66,7 @@ func TestRepeatFiringSetsHeartbeatNoSecondRow(t *testing.T) {
 	}
 }
 
-func TestResolvedMarksResolved(t *testing.T) {
+func TestResolveSetsStatus(t *testing.T) {
 	c, s, _ := newCore(t)
 	c.Handle(context.Background(), fire("infra", "k"))
 	res := fire("infra", "k")
@@ -78,7 +78,7 @@ func TestResolvedMarksResolved(t *testing.T) {
 }
 
 // a closed row must not block the same key from firing again.
-func TestFiringAfterResolveCreatesNewIncident(t *testing.T) {
+func TestRefireAfterResolve(t *testing.T) {
 	c, s, _ := newCore(t)
 	if err := c.Handle(context.Background(), fire("infra", "k")); err != nil {
 		t.Fatal(err)
@@ -109,7 +109,7 @@ func TestFiringAfterResolveCreatesNewIncident(t *testing.T) {
 	}
 }
 
-func TestResolvedUnknownIsNoOp(t *testing.T) {
+func TestResolveUnknownNoOp(t *testing.T) {
 	c, _, w := newCore(t)
 	res := fire("infra", "ghost")
 	res.Status = event.Resolved
@@ -123,7 +123,7 @@ func TestResolvedUnknownIsNoOp(t *testing.T) {
 
 // every field the renderer shows must change displayHash, or a repeat firing
 // would render new content but never mark the card unconfirmed, so no edit fires.
-func TestDisplayHashCoversDisplayFields(t *testing.T) {
+func TestDisplayHashFields(t *testing.T) {
 	base := &store.Incident{Severity: "warning", Title: "t", Body: "b", Host: "h"}
 	h0 := displayHash(base)
 	mutate := []func(*store.Incident){

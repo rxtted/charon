@@ -25,7 +25,7 @@ func newConv(t *testing.T) (*Converger, *store.Store, *fakeSender) {
 	return NewConverger(s, NewQueue(f, time.Millisecond, 100), lock.New(), errs), s, f
 }
 
-func TestReconcilePostsThenMarksConfirmed(t *testing.T) {
+func TestReconcilePosts(t *testing.T) {
 	cv, s, f := newConv(t)
 	in := &store.Incident{DedupKey: "k", Channel: "infra", ChannelID: "111", Severity: "warning",
 		Status: "active", Version: 1, Title: "t", DesiredPresent: true, Confirmed: false, CreatedAt: time.Now()}
@@ -42,7 +42,7 @@ func TestReconcilePostsThenMarksConfirmed(t *testing.T) {
 	}
 }
 
-func TestReconcileDeletesWhenAbsent(t *testing.T) {
+func TestReconcileDeletes(t *testing.T) {
 	cv, s, f := newConv(t)
 	del := 0
 	f.onDelete = func() { del++ }
@@ -57,9 +57,9 @@ func TestReconcileDeletesWhenAbsent(t *testing.T) {
 	}
 }
 
-// TestReconcileDeleteNotFoundConverges: a delete-not-found means the
+// a delete-not-found means the
 // message is already gone, so it must count as a success.
-func TestReconcileDeleteNotFoundConverges(t *testing.T) {
+func TestReconcileDeleteMissing(t *testing.T) {
 	cv, s, f := newConv(t)
 	f.onDeleteErr = func() error { return &rest.Error{Code: rest.JSONErrorCodeUnknownMessage} }
 	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "resolved", Version: 1,
@@ -74,9 +74,9 @@ func TestReconcileDeleteNotFoundConverges(t *testing.T) {
 	}
 }
 
-// TestReconcileEditNotFoundReposts: an edit-not-found means the card
+// an edit-not-found means the card
 // vanished, so message_id clears and confirmed goes false so it reposts.
-func TestReconcileEditNotFoundReposts(t *testing.T) {
+func TestReconcileEditMissing(t *testing.T) {
 	cv, s, f := newConv(t)
 	f.onEdit = func() error { return &rest.Error{Code: rest.JSONErrorCodeUnknownMessage} }
 	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "active", Version: 1,
@@ -111,11 +111,11 @@ func TestIsNotFound(t *testing.T) {
 	}
 }
 
-// TestPassContinuesAfterRowError: one bad row must not starve the
+// one bad row must not starve the
 // rest of the sweep behind it. the bad row's error is a genuine store-level
 // conflict (a concurrent writer bumps its version mid-post), so the queue never
 // looks degraded and the pass must not bail early.
-func TestPassContinuesAfterRowError(t *testing.T) {
+func TestPassSkipsBadRow(t *testing.T) {
 	cv, s, f := newConv(t)
 	bad := &store.Incident{DedupKey: "bad", ChannelID: "111", Status: "active", Version: 1,
 		DesiredPresent: true, Confirmed: false, CreatedAt: time.Now()}
@@ -147,10 +147,10 @@ func TestPassContinuesAfterRowError(t *testing.T) {
 	}
 }
 
-// TestPassStopsOnCancelledContext covers fix 2: a shutdown must abort the
+// a shutdown must abort the
 // remaining rows of a pass promptly rather than running each one out to its
 // own reconcile timeout.
-func TestPassStopsOnCancelledContext(t *testing.T) {
+func TestPassStopsOnCancel(t *testing.T) {
 	cv, s, f := newConv(t)
 	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "active", Version: 1,
 		DesiredPresent: true, Confirmed: false, CreatedAt: time.Now()}

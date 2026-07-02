@@ -9,7 +9,7 @@ import (
 	"github.com/rxtted/charon/internal/lock"
 )
 
-func TestReaperClosesStaleHeartbeat(t *testing.T) {
+func TestReaperClosesStale(t *testing.T) {
 	c, s, _ := newCore(t)
 	c.Handle(context.Background(), fire("infra", "k"))
 	c.Handle(context.Background(), fire("infra", "k")) // establishes heartbeat

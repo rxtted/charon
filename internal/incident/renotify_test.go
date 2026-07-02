@@ -11,7 +11,7 @@ import (
 	"github.com/rxtted/charon/internal/store"
 )
 
-func TestSweepStagesRepostForStaleUnacked(t *testing.T) {
+func TestSweepStagesRepost(t *testing.T) {
 	c, s, _ := newCore(t)
 	c.Handle(context.Background(), fire("infra", "k"))
 	in, _ := s.ActiveByKey("k") // simulate the converger having posted it 5h ago
@@ -44,7 +44,7 @@ func TestSweepSkipsAcked(t *testing.T) {
 	}
 }
 
-func TestSweepSkipsFreshlySnoozed(t *testing.T) {
+func TestSweepSkipsSnoozed(t *testing.T) {
 	s, err := store.Open(filepath.Join(t.TempDir(), "c.db"))
 	if err != nil {
 		t.Fatal(err)

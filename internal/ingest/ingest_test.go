@@ -14,7 +14,7 @@ import (
 
 type adapterList = adapter.Adapter
 
-func TestIngestRoutesAndAccepts(t *testing.T) {
+func TestIngestAccepts(t *testing.T) {
 	var got event.Event
 	h := Handler([]adapterList{native.New()}, "", 1<<20, func(_ context.Context, e event.Event) error { got = e; return nil })
 	body := `{"source":"grafana","status":"firing","channel":"infra","title":"host down"}`
@@ -28,7 +28,7 @@ func TestIngestRoutesAndAccepts(t *testing.T) {
 	}
 }
 
-func TestIngestTokenRequiredWhenSet(t *testing.T) {
+func TestTokenRequired(t *testing.T) {
 	h := Handler([]adapterList{native.New()}, "secret", 1<<20, func(context.Context, event.Event) error { return nil })
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest("POST", "/ingest", strings.NewReader("{}")))
@@ -37,10 +37,10 @@ func TestIngestTokenRequiredWhenSet(t *testing.T) {
 	}
 }
 
-// TestIngestOversizedBodyReturns413: a body over MaxBodyBytes must
+// a body over MaxBodyBytes must
 // report 413. that requires the adapter's wrapped read error to still chain to
 // *http.MaxBytesError so ingest's errors.As can see it.
-func TestIngestOversizedBodyReturns413(t *testing.T) {
+func TestBodyTooLarge(t *testing.T) {
 	h := Handler([]adapterList{native.New()}, "", 16, func(context.Context, event.Event) error { return nil })
 	body := strings.Repeat("a", 1<<10)
 	rr := httptest.NewRecorder()

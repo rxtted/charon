@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-// TestSweepLoopExitsOnContextCancel covers fix 1: sweepLoop is one of the two
+// sweepLoop is one of the two
 // goroutines run()'s wg.Wait() joins on shutdown. it must return as soon as ctx
 // is cancelled rather than waiting for its next tick.
-func TestSweepLoopExitsOnContextCancel(t *testing.T) {
+func TestSweepStopsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
@@ -25,15 +25,14 @@ func TestSweepLoopExitsOnContextCancel(t *testing.T) {
 	}
 }
 
-// TestShutdownCancelsContextBeforeWaitingOnGoroutines is a regression test for
-// the boot deadlock fixed in run(): every early-return error path joins the
+// a boot deadlock this guards against: every early-return error path in run() joins the
 // converger and sweep-loop goroutines with wg.Wait(), but those goroutines only
 // exit on ctx.Done(). if an error path called wg.Wait() without first cancelling
 // ctx (as run() briefly did), the process would hang forever on an ordinary
 // startup failure like a bind conflict instead of fast-failing. this mirrors
 // run()'s exact goroutine shape and asserts the fixed order (cancel, then wait)
 // completes quickly.
-func TestShutdownCancelsContextBeforeWaitingOnGoroutines(t *testing.T) {
+func TestShutdownCancelsContext(t *testing.T) {
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
 

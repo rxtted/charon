@@ -41,7 +41,7 @@ func TestManualResolve(t *testing.T) {
 	}
 }
 
-func TestActionsOnMissingAreNoOp(t *testing.T) {
+func TestActionsNoOpOnMissing(t *testing.T) {
 	c, _, _ := newCore(t)
 	if err := c.Acknowledge(context.Background(), "ghost", "noah"); err != nil {
 		t.Fatal(err)
