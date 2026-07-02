@@ -49,7 +49,7 @@ func (c *Converger) pass() {
 		return
 	}
 	for _, in := range rows {
-		if err := c.reconcile(in.DedupKey); err != nil {
+		if err := c.reconcile(in); err != nil {
 			slog.Warn("reconcile failed, will retry", "key", in.DedupKey, "err", err)
 			return // discord likely degraded; leave the rest for the next pass
 		}
@@ -57,11 +57,12 @@ func (c *Converger) pass() {
 }
 
 // reconcile holds the shared key lock for the whole row, so the discord call and
-// the write that records it are atomic against the core and the sweeps.
-func (c *Converger) reconcile(key string) error {
-	release := c.coord.Lock(key)
+// the write that records it are atomic against the core and the sweeps. it reloads
+// the row by id under the lock since dedup_key is no longer unique across rows.
+func (c *Converger) reconcile(in *store.Incident) error {
+	release := c.coord.Lock(in.DedupKey)
 	defer release()
-	in, err := c.store.ByKey(key) // any status: a resolved row still owes a delete
+	in, err := c.store.ById(in.ID) // any status: a resolved row still owes a delete
 	if err != nil || in == nil {
 		return err
 	}

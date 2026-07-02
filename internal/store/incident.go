@@ -11,6 +11,7 @@ import (
 var ErrStale = errors.New("incident version is stale")
 
 type Incident struct {
+	ID             int64
 	DedupKey       string
 	Channel        string
 	ChannelID      string
@@ -37,7 +38,7 @@ type Incident struct {
 	ResolvedAt     *time.Time
 }
 
-const cols = `dedup_key,channel,channel_id,severity,status,version,title,body,host,link,labels,
+const cols = `id,dedup_key,channel,channel_id,severity,status,version,title,body,host,link,labels,
 desired_present,content_hash,message_id,stale_message_id,created_at,last_seen_firing,confirmed,heartbeat,
 acked_at,acked_by,snoozed_until,last_notified_at,resolved_at`
 
@@ -77,7 +78,7 @@ func nullTime(n sql.NullInt64) *time.Time {
 
 func (s *Store) Insert(in *Incident) error {
 	labels, _ := json.Marshal(in.Labels)
-	_, err := s.db.Exec(`insert into incidents
+	res, err := s.db.Exec(`insert into incidents
         (dedup_key,channel,channel_id,severity,status,version,title,body,host,link,labels,
          desired_present,content_hash,message_id,stale_message_id,created_at,last_seen_firing,confirmed,heartbeat)
         values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -88,6 +89,11 @@ func (s *Store) Insert(in *Incident) error {
 	if err != nil {
 		return fmt.Errorf("insert incident %s: %w", in.DedupKey, err)
 	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("insert incident %s: %w", in.DedupKey, err)
+	}
+	in.ID = id
 	return nil
 }
 
@@ -99,11 +105,11 @@ func (s *Store) Update(in *Incident) error {
         channel=?,channel_id=?,severity=?,status=?,version=version+1,title=?,body=?,host=?,link=?,labels=?,
         desired_present=?,content_hash=?,message_id=?,stale_message_id=?,last_seen_firing=?,confirmed=?,heartbeat=?,
         acked_at=?,acked_by=?,snoozed_until=?,last_notified_at=?,resolved_at=?
-        where dedup_key=? and version=?`,
+        where id=? and version=?`,
 		in.Channel, in.ChannelID, in.Severity, in.Status, in.Title, in.Body, in.Host, in.Link, string(labels),
 		b2i(in.DesiredPresent), in.ContentHash, in.MessageID, in.StaleMessageID, unixOrZero(in.LastSeenFiring), b2i(in.Confirmed), b2i(in.Heartbeat),
 		unixPtr(in.AckedAt), in.AckedBy, unixPtr(in.SnoozedUntil), unixPtr(in.LastNotifiedAt), unixPtr(in.ResolvedAt),
-		in.DedupKey, in.Version)
+		in.ID, in.Version)
 	if err != nil {
 		return fmt.Errorf("update incident %s: %w", in.DedupKey, err)
 	}
@@ -150,9 +156,9 @@ func (s *Store) NeedingConverge() ([]*Incident, error) {
         where confirmed=0 or stale_message_id<>'' or (desired_present=0 and message_id<>'')`)
 }
 
-// ByKey returns the incident regardless of status (the converger needs resolved rows).
-func (s *Store) ByKey(key string) (*Incident, error) {
-	return s.scanOne(`select `+cols+` from incidents where dedup_key=?`, key)
+// ById returns the incident regardless of status (the converger needs resolved rows).
+func (s *Store) ById(id int64) (*Incident, error) {
+	return s.scanOne(`select `+cols+` from incidents where id=?`, id)
 }
 
 func (s *Store) MarkAllUnconfirmed() error {
@@ -196,7 +202,7 @@ func scan(rows *sql.Rows) (*Incident, error) {
 	var created, lastFiring int64
 	var acked, snoozed, lastNotified, resolved sql.NullInt64
 	var ackedBy sql.NullString
-	if err := rows.Scan(&in.DedupKey, &in.Channel, &in.ChannelID, &in.Severity, &in.Status, &in.Version,
+	if err := rows.Scan(&in.ID, &in.DedupKey, &in.Channel, &in.ChannelID, &in.Severity, &in.Status, &in.Version,
 		&in.Title, &in.Body, &in.Host, &in.Link, &labels, &desired, &in.ContentHash, &in.MessageID, &in.StaleMessageID,
 		&created, &lastFiring, &confirmed, &heartbeat, &acked, &ackedBy, &snoozed, &lastNotified, &resolved); err != nil {
 		return nil, err

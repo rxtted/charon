@@ -77,6 +77,38 @@ func TestResolvedMarksResolved(t *testing.T) {
 	}
 }
 
+// C1 regression: a closed row must not block the same key from firing again.
+func TestFiringAfterResolveCreatesNewIncident(t *testing.T) {
+	c, s, _ := newCore(t)
+	if err := c.Handle(context.Background(), fire("infra", "k")); err != nil {
+		t.Fatal(err)
+	}
+	first, _ := s.ActiveByKey("k")
+	if first == nil {
+		t.Fatal("expected an active incident after the first firing")
+	}
+
+	res := fire("infra", "k")
+	res.Status = event.Resolved
+	if err := c.Handle(context.Background(), res); err != nil {
+		t.Fatal(err)
+	}
+	if in, _ := s.ActiveByKey("k"); in != nil {
+		t.Fatal("incident should no longer be active after resolve")
+	}
+
+	if err := c.Handle(context.Background(), fire("infra", "k")); err != nil {
+		t.Fatalf("second firing after resolve should succeed, got: %v", err)
+	}
+	second, _ := s.ActiveByKey("k")
+	if second == nil {
+		t.Fatal("expected a new active incident after the second firing")
+	}
+	if second.ID == first.ID {
+		t.Fatalf("expected a new row, got the same id %d", second.ID)
+	}
+}
+
 func TestResolvedUnknownIsNoOp(t *testing.T) {
 	c, _, w := newCore(t)
 	res := fire("infra", "ghost")

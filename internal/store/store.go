@@ -13,7 +13,8 @@ type Store struct {
 
 const schema = `
 create table if not exists incidents (
-    dedup_key        text primary key,
+    id               integer primary key autoincrement,
+    dedup_key        text not null,
     channel          text not null,
     channel_id       text not null default '',
     severity         text not null,
@@ -38,7 +39,7 @@ create table if not exists incidents (
     last_notified_at integer,
     resolved_at      integer
 );
-create index if not exists idx_active on incidents(status) where status='active';
+create unique index if not exists idx_active_key on incidents(dedup_key) where status='active';
 create index if not exists idx_sweeps on incidents(status, last_notified_at, snoozed_until, last_seen_firing);
 `
 

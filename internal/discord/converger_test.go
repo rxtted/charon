@@ -25,7 +25,7 @@ func TestReconcilePostsThenMarksConfirmed(t *testing.T) {
 	in := &store.Incident{DedupKey: "k", Channel: "infra", ChannelID: "111", Severity: "warning",
 		Status: "active", Version: 1, Title: "t", DesiredPresent: true, Confirmed: false, CreatedAt: time.Now()}
 	s.Insert(in)
-	if err := cv.reconcile(in.DedupKey); err != nil {
+	if err := cv.reconcile(in); err != nil {
 		t.Fatal(err)
 	}
 	if f.posts != 1 {
@@ -44,7 +44,7 @@ func TestReconcileDeletesWhenAbsent(t *testing.T) {
 	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "resolved", Version: 1,
 		DesiredPresent: false, Confirmed: false, MessageID: "msg", CreatedAt: time.Now()}
 	s.Insert(in)
-	if err := cv.reconcile(in.DedupKey); err != nil {
+	if err := cv.reconcile(in); err != nil {
 		t.Fatal(err)
 	}
 	if del != 1 {
