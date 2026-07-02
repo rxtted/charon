@@ -56,3 +56,6 @@ func Open(path string) (*Store, error) {
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+// DBForTest exposes the underlying *sql.DB for assertions in this module's tests.
+func (s *Store) DBForTest() *sql.DB { return s.db }
