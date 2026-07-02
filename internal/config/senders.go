@@ -8,11 +8,6 @@ import (
 	"github.com/rxtted/charon/internal/card"
 )
 
-var allowedTokens = map[string]bool{
-	"title": true, "body": true, "source": true, "host": true,
-	"severity": true, "time": true, "link": true,
-}
-
 var (
 	braceRe    = regexp.MustCompile(`\{[^{}]*\}`)
 	labelKeyRe = regexp.MustCompile(`^labels\.[A-Za-z0-9_]+$`)
@@ -30,7 +25,7 @@ func validateStyle(name string, st card.Style) error {
 			return err
 		}
 	}
-	if st.Icon != "" && !strings.HasPrefix(st.Icon, "http://") && !strings.HasPrefix(st.Icon, "https://") {
+	if st.Icon != "" && !card.IsHTTPURL(st.Icon) {
 		return fmt.Errorf("sender %s: icon url must be http(s): %q", name, st.Icon)
 	}
 	for sev, hex := range st.Accent {
@@ -45,7 +40,14 @@ func validateStyle(name string, st card.Style) error {
 		return fmt.Errorf("sender %s: at most two links per card (the action row holds five, three are lifecycle buttons)", name)
 	}
 	for _, l := range st.Links {
-		if len(l.Label) > 80 {
+		// labels are static button captions, not format strings, so a placeholder in
+		// one would render literally; require plain non-empty text within the limit.
+		switch {
+		case l.Label == "":
+			return fmt.Errorf("sender %s: link label is required", name)
+		case braceRe.MatchString(l.Label):
+			return fmt.Errorf("sender %s: link label must be static text, no placeholders: %q", name, l.Label)
+		case len(l.Label) > 80:
 			return fmt.Errorf("sender %s: link label over discord's 80-char button limit: %q", name, l.Label)
 		}
 	}
@@ -53,18 +55,21 @@ func validateStyle(name string, st card.Style) error {
 }
 
 // checkTokens rejects any brace-delimited run that isn't an allowed token or a
-// labels.<key>, so a typo like {Title}, {labels.}, or {labels.job-name} fails at
-// boot instead of rendering literally.
+// labels.<key>, and any stray or unbalanced brace, so {Title}, {labels.job-name},
+// {title (unmatched), or {{title}} fails at boot instead of rendering literally.
 func checkTokens(name, s string, allowDuration bool) error {
 	for _, m := range braceRe.FindAllString(s, -1) {
 		key := m[1 : len(m)-1]
-		if allowedTokens[key] || labelKeyRe.MatchString(key) {
+		if card.AllowedToken(key) || labelKeyRe.MatchString(key) {
 			continue
 		}
 		if allowDuration && key == "duration" {
 			continue
 		}
 		return fmt.Errorf("sender %s: unknown or malformed placeholder %s", name, m)
+	}
+	if leftover := braceRe.ReplaceAllString(s, ""); strings.ContainsAny(leftover, "{}") {
+		return fmt.Errorf("sender %s: stray or unbalanced brace in %q", name, s)
 	}
 	return nil
 }
