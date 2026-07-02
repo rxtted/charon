@@ -205,7 +205,7 @@ the write load is a handful of rows per alert event, negligible against the prom
 
 ## deployment
 
-- a static arm64 binary from a multi-stage build (go 1.24 builder, distroless or scratch final), cgo disabled.
+- a static arm64 binary from a multi-stage build (go 1.25 builder, distroless or scratch final), cgo disabled. the 1.25 floor is forced by modernc.org/sqlite, not chosen.
 - runs in triton's `monitoring` compose stack, in the slot apprise held. apprise, its config, and its vhost are removed (see replacing apprise).
 - the ingest process listens on `0.0.0.0:8000` inside the container, and the compose `ports:` publishes it only to `192.168.20.10` (vlan) and `127.0.0.1` (loopback), matching apprise's reach, so grafana, the titan scripts, and unbound can all post while the host exposure stays restricted (the same publish-restricts pattern prometheus and grafana already use). a listener that cannot bind is a fatal startup error, not a silent skip.
 - an outbound gateway websocket to discord (disgo auto-reconnects and resumes).
