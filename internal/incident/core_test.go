@@ -130,7 +130,7 @@ func TestResolveUnknownNoOp(t *testing.T) {
 	}
 }
 
-// every field the renderer shows must change displayHash, or a repeat firing
+// every field the renderer shows must change contentHash, or a repeat firing
 // would render new content but never mark the card unconfirmed, so no edit fires.
 func TestContentHashFields(t *testing.T) {
 	styles := card.NewSet(map[string]card.Style{
