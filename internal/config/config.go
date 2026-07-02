@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/rxtted/charon/internal/card"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,14 +21,18 @@ type Config struct {
 	RenotifyEvery time.Duration
 	ReaperGrace   time.Duration
 	SnoozeOptions []time.Duration
+	Styles        card.Set
+	CardWrap      int
 }
 
 type fileConfig struct {
-	Channels      map[string]string `yaml:"channels"`
-	Fallback      string            `yaml:"fallback"`
-	RenotifyEvery time.Duration     `yaml:"renotify_every"`
-	ReaperGrace   time.Duration     `yaml:"reaper_grace"`
-	SnoozeOptions []time.Duration   `yaml:"snooze_options"`
+	Channels      map[string]string     `yaml:"channels"`
+	Fallback      string                `yaml:"fallback"`
+	RenotifyEvery time.Duration         `yaml:"renotify_every"`
+	ReaperGrace   time.Duration         `yaml:"reaper_grace"`
+	SnoozeOptions []time.Duration       `yaml:"snooze_options"`
+	Senders       map[string]card.Style `yaml:"senders"`
+	CardWrap      int                   `yaml:"card_wrap"`
 }
 
 func Load(lookup func(string) (string, bool), ymlPath string) (Config, error) {
@@ -60,6 +65,16 @@ func Load(lookup func(string) (string, bool), ymlPath string) (Config, error) {
 	}
 	if cfg.Fallback == "" {
 		return Config{}, fmt.Errorf("config: fallback channel is required")
+	}
+	for name, st := range fc.Senders {
+		if err := validateStyle(name, st); err != nil {
+			return Config{}, err
+		}
+	}
+	cfg.Styles = card.NewSet(fc.Senders)
+	cfg.CardWrap = fc.CardWrap
+	if cfg.CardWrap <= 0 {
+		cfg.CardWrap = 52
 	}
 	return cfg, nil
 }
