@@ -119,7 +119,14 @@ func (s *Store) ActiveByKey(key string) (*Incident, error) {
 	return s.scanOne(`select `+cols+` from incidents where dedup_key=? and status='active'`, key)
 }
 
-// DueForRenotify returns active, unacked incidents with a live message, no repost
+// dueForReap returns active, heartbeat-backed incidents last seen firing before cutoff.
+func (s *Store) DueForReap(cutoff time.Time) ([]*Incident, error) {
+	return s.scanMany(`select `+cols+` from incidents
+        where status='active' and heartbeat=1 and last_seen_firing>0 and last_seen_firing<?`,
+		cutoff.Unix())
+}
+
+// dueForRenotify returns active, unacked incidents with a live message, no repost
 // already staged, whose snooze (if any) has lapsed and whose last notify is older
 // than cutoff.
 func (s *Store) DueForRenotify(now, cutoff time.Time) ([]*Incident, error) {
@@ -128,6 +135,11 @@ func (s *Store) DueForRenotify(now, cutoff time.Time) ([]*Incident, error) {
         and (snoozed_until is null or snoozed_until<=?)
         and (last_notified_at is null or last_notified_at<=?)`,
 		now.Unix(), cutoff.Unix())
+}
+
+func (s *Store) MarkAllUnconfirmed() error {
+	_, err := s.db.Exec(`update incidents set confirmed=0, version=version+1 where status='active'`)
+	return err
 }
 
 func (s *Store) scanOne(query string, args ...any) (*Incident, error) {
