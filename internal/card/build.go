@@ -1,6 +1,8 @@
 package card
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 	"regexp"
 	"strconv"
@@ -181,4 +183,47 @@ func Short(d time.Duration) string {
 	default:
 		return strconv.Itoa(int(d.Hours())) + "h"
 	}
+}
+
+// ContentHash digests exactly what the card shows, so the converger reposts iff
+// the visible content changed. icon and accent derive from the source and stay
+// out; {duration} is expanded live at render and never reaches here.
+func (r Rendered) ContentHash() string {
+	var b strings.Builder
+	b.WriteString(r.Title)
+	b.WriteByte(0)
+	b.WriteString(r.Description)
+	b.WriteByte(0)
+	b.WriteString(r.Severity)
+	b.WriteByte(0)
+	b.WriteString(r.Note)
+	b.WriteByte(0)
+	for _, g := range r.Glance {
+		b.WriteString(g.Value)
+		if g.Code {
+			b.WriteByte('`')
+		}
+		b.WriteByte(0)
+	}
+	b.WriteByte(0)
+	for _, d := range r.Data {
+		b.WriteString(d.Label)
+		b.WriteByte(':')
+		b.WriteString(d.Value)
+		b.WriteByte(0)
+	}
+	b.WriteByte(0)
+	for _, f := range r.Footer {
+		b.WriteString(f)
+		b.WriteByte(0)
+	}
+	b.WriteByte(0)
+	for _, l := range r.Links {
+		b.WriteString(l.Label)
+		b.WriteByte('|')
+		b.WriteString(l.URL)
+		b.WriteByte(0)
+	}
+	sum := sha256.Sum256([]byte(b.String()))
+	return hex.EncodeToString(sum[:8])
 }
