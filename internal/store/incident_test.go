@@ -36,6 +36,22 @@ func TestInsertActiveByKey(t *testing.T) {
 	}
 }
 
+func TestSourcePersists(t *testing.T) {
+	s := newStore(t)
+	in := &Incident{DedupKey: "k1", Channel: "infra", Source: "grafana", Severity: "critical",
+		Status: "active", Version: 1, Title: "t", CreatedAt: time.Unix(1, 0)}
+	if err := s.Insert(in); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ActiveByKey("k1")
+	if err != nil || got == nil {
+		t.Fatalf("ActiveByKey: %v", err)
+	}
+	if got.Source != "grafana" {
+		t.Fatalf("source = %q, want grafana", got.Source)
+	}
+}
+
 // the boot orphan sweep's keep-list must include
 // only live cards of active incidents; resolved rows and unposted ones don't belong.
 func TestActiveMessageIDs(t *testing.T) {

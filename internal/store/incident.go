@@ -15,6 +15,7 @@ type Incident struct {
 	DedupKey       string
 	Channel        string
 	ChannelID      string
+	Source         string
 	Severity       string
 	Status         string // active | resolved
 	Version        int
@@ -38,7 +39,7 @@ type Incident struct {
 	ResolvedAt     *time.Time
 }
 
-const cols = `id,dedup_key,channel,channel_id,severity,status,version,title,body,host,link,labels,
+const cols = `id,dedup_key,channel,channel_id,source,severity,status,version,title,body,host,link,labels,
 desired_present,content_hash,message_id,stale_message_id,created_at,last_seen_firing,confirmed,heartbeat,
 acked_at,acked_by,snoozed_until,last_notified_at,resolved_at`
 
@@ -75,10 +76,10 @@ func nullTime(n sql.NullInt64) *time.Time {
 func (s *Store) Insert(in *Incident) error {
 	labels, _ := json.Marshal(in.Labels)
 	res, err := s.db.Exec(`insert into incidents
-        (dedup_key,channel,channel_id,severity,status,version,title,body,host,link,labels,
+        (dedup_key,channel,channel_id,source,severity,status,version,title,body,host,link,labels,
          desired_present,content_hash,message_id,stale_message_id,created_at,last_seen_firing,confirmed,heartbeat)
-        values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		in.DedupKey, in.Channel, in.ChannelID, in.Severity, in.Status, in.Version,
+        values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		in.DedupKey, in.Channel, in.ChannelID, in.Source, in.Severity, in.Status, in.Version,
 		in.Title, in.Body, in.Host, in.Link, string(labels),
 		b2i(in.DesiredPresent), in.ContentHash, in.MessageID, in.StaleMessageID,
 		in.CreatedAt.Unix(), unixOrZero(in.LastSeenFiring), b2i(in.Confirmed), b2i(in.Heartbeat))
@@ -218,7 +219,7 @@ func scan(rows *sql.Rows) (*Incident, error) {
 	var created, lastFiring int64
 	var acked, snoozed, lastNotified, resolved sql.NullInt64
 	var ackedBy sql.NullString
-	if err := rows.Scan(&in.ID, &in.DedupKey, &in.Channel, &in.ChannelID, &in.Severity, &in.Status, &in.Version,
+	if err := rows.Scan(&in.ID, &in.DedupKey, &in.Channel, &in.ChannelID, &in.Source, &in.Severity, &in.Status, &in.Version,
 		&in.Title, &in.Body, &in.Host, &in.Link, &labels, &desired, &in.ContentHash, &in.MessageID, &in.StaleMessageID,
 		&created, &lastFiring, &confirmed, &heartbeat, &acked, &ackedBy, &snoozed, &lastNotified, &resolved); err != nil {
 		return nil, err
