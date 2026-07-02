@@ -40,7 +40,7 @@ func TestDispatchNilIsSafe(t *testing.T) {
 	}
 }
 
-// TestOrphanIDs covers I1's selection logic: only self-authored messages not in
+// TestOrphanIDs: only self-authored messages not in
 // keep are orphans; messages from other users and kept messages are left alone.
 func TestOrphanIDs(t *testing.T) {
 	self := snowflake.ID(100)

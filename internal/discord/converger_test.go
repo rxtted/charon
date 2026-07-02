@@ -57,7 +57,7 @@ func TestReconcileDeletesWhenAbsent(t *testing.T) {
 	}
 }
 
-// TestReconcileDeleteNotFoundConverges covers C2: a delete-not-found means the
+// TestReconcileDeleteNotFoundConverges: a delete-not-found means the
 // message is already gone, so it must count as a success.
 func TestReconcileDeleteNotFoundConverges(t *testing.T) {
 	cv, s, f := newConv(t)
@@ -74,7 +74,7 @@ func TestReconcileDeleteNotFoundConverges(t *testing.T) {
 	}
 }
 
-// TestReconcileEditNotFoundReposts covers C2: an edit-not-found means the card
+// TestReconcileEditNotFoundReposts: an edit-not-found means the card
 // vanished, so message_id clears and confirmed goes false so it reposts.
 func TestReconcileEditNotFoundReposts(t *testing.T) {
 	cv, s, f := newConv(t)
@@ -111,7 +111,7 @@ func TestIsNotFound(t *testing.T) {
 	}
 }
 
-// TestPassContinuesAfterRowError covers C2: one bad row must not starve the
+// TestPassContinuesAfterRowError: one bad row must not starve the
 // rest of the sweep behind it. the bad row's error is a genuine store-level
 // conflict (a concurrent writer bumps its version mid-post), so the queue never
 // looks degraded and the pass must not bail early.

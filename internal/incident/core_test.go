@@ -77,7 +77,7 @@ func TestResolvedMarksResolved(t *testing.T) {
 	}
 }
 
-// C1 regression: a closed row must not block the same key from firing again.
+// a closed row must not block the same key from firing again.
 func TestFiringAfterResolveCreatesNewIncident(t *testing.T) {
 	c, s, _ := newCore(t)
 	if err := c.Handle(context.Background(), fire("infra", "k")); err != nil {

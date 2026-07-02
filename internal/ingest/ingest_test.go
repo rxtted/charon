@@ -37,7 +37,7 @@ func TestIngestTokenRequiredWhenSet(t *testing.T) {
 	}
 }
 
-// TestIngestOversizedBodyReturns413 covers I3: a body over MaxBodyBytes must
+// TestIngestOversizedBodyReturns413: a body over MaxBodyBytes must
 // report 413. that requires the adapter's wrapped read error to still chain to
 // *http.MaxBytesError so ingest's errors.As can see it.
 func TestIngestOversizedBodyReturns413(t *testing.T) {

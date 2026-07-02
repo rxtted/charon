@@ -29,7 +29,7 @@ func TestLoadMergesEnvAndYAML(t *testing.T) {
 	}
 }
 
-// TestAllChannelIDsDedupes covers I1's boot orphan sweep: it needs every
+// TestAllChannelIDsDedupes: the boot orphan sweep needs every
 // distinct channel id, routed or fallback, exactly once.
 func TestAllChannelIDsDedupes(t *testing.T) {
 	env := map[string]string{"CHARON_DISCORD_TOKEN": "tok"}

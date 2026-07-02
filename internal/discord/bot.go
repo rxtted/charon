@@ -137,7 +137,7 @@ func (r restSender) DeleteMsg(ctx context.Context, channelID, msgID string) erro
 func (b *Bot) Open(ctx context.Context) error { return b.client.OpenGateway(ctx) }
 func (b *Bot) Close()                         { b.client.Close(context.Background()) }
 
-// SweepOrphans is a one-shot boot reconciliation (I1): a crash between posting a
+// SweepOrphans is a one-shot boot reconciliation: a crash between posting a
 // card and writing its message_id can leave a bot-authored card with no matching
 // incident. for each channel it lists the bot's own recent messages and deletes
 // any whose id isn't in keep (the message ids of currently active incidents).

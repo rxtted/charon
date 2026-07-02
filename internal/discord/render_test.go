@@ -73,7 +73,7 @@ func contains(ss []string, s string) bool {
 	return false
 }
 
-// TestRenderAllowedMentionsIsEmpty covers I2: incident cards render attacker-
+// TestRenderAllowedMentionsIsEmpty: incident cards render attacker-
 // controlled ingest text, so both create and update messages must carry a
 // non-nil, empty AllowedMentions that parses nothing out of that text.
 func TestRenderAllowedMentionsIsEmpty(t *testing.T) {

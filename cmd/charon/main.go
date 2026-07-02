@@ -64,7 +64,7 @@ func run() error {
 		return err
 	}
 
-	// boot orphan sweep (I1): a crash between posting a card and writing its
+	// boot orphan sweep: a crash between posting a card and writing its
 	// message_id can leave a bot-authored card with no matching incident. this is
 	// best-effort and never fails startup.
 	if keep, err := st.ActiveMessageIDs(); err != nil {
