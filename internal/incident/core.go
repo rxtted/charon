@@ -113,3 +113,52 @@ func derefStr(p *string) string {
 	}
 	return *p
 }
+
+func (c *Core) mutate(ctx context.Context, key string, fn func(*store.Incident)) error {
+	release := c.coord.Lock(key)
+	defer release()
+	in, err := c.store.ActiveByKey(key)
+	if err != nil || in == nil {
+		return err // nil,nil => no-op
+	}
+	fn(in)
+	h := displayHash(in)
+	if h != in.ContentHash {
+		in.Confirmed = false
+	}
+	in.ContentHash = h
+	if err := c.store.Update(in); err != nil {
+		return err
+	}
+	c.wake.Wake()
+	return nil
+}
+
+func (c *Core) Acknowledge(ctx context.Context, key, user string) error {
+	return c.mutate(ctx, key, func(in *store.Incident) {
+		now := time.Now()
+		in.AckedAt, in.AckedBy = &now, &user
+	})
+}
+
+func (c *Core) Snooze(ctx context.Context, key, user string, d time.Duration) error {
+	return c.mutate(ctx, key, func(in *store.Incident) {
+		until := time.Now().Add(d)
+		in.SnoozedUntil, in.AckedBy = &until, &user
+	})
+}
+
+func (c *Core) Resolve(ctx context.Context, key, user string) error {
+	release := c.coord.Lock(key)
+	defer release()
+	in, err := c.store.ActiveByKey(key)
+	if err != nil || in == nil {
+		return err
+	}
+	markResolved(in)
+	if err := c.store.Update(in); err != nil {
+		return err
+	}
+	c.wake.Wake()
+	return nil
+}
