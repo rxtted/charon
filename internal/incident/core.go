@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rxttd/cheron/internal/config"
-	"github.com/rxttd/cheron/internal/event"
-	"github.com/rxttd/cheron/internal/lock"
-	"github.com/rxttd/cheron/internal/store"
+	"github.com/rxtted/cheron/internal/config"
+	"github.com/rxtted/cheron/internal/event"
+	"github.com/rxtted/cheron/internal/lock"
+	"github.com/rxtted/cheron/internal/store"
 )
 
 type Waker interface{ Wake() }

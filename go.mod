@@ -1,4 +1,4 @@
-module github.com/rxttd/cheron
+module github.com/rxtted/cheron
 
 go 1.25.0
 

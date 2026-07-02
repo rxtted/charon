@@ -6,7 +6,7 @@ import (
 	"time"
 
 	dgo "github.com/disgoorg/disgo/discord"
-	"github.com/rxttd/cheron/internal/store"
+	"github.com/rxtted/cheron/internal/store"
 )
 
 // walk yields every component in mc, recursing into containers/action rows via

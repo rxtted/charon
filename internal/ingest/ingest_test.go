@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rxttd/cheron/internal/adapter"
-	"github.com/rxttd/cheron/internal/adapter/native"
-	"github.com/rxttd/cheron/internal/event"
+	"github.com/rxtted/cheron/internal/adapter"
+	"github.com/rxtted/cheron/internal/adapter/native"
+	"github.com/rxtted/cheron/internal/event"
 )
 
 type adapterList = adapter.Adapter

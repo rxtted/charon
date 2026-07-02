@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rxttd/cheron/internal/config"
-	"github.com/rxttd/cheron/internal/lock"
-	"github.com/rxttd/cheron/internal/store"
+	"github.com/rxtted/cheron/internal/config"
+	"github.com/rxtted/cheron/internal/lock"
+	"github.com/rxtted/cheron/internal/store"
 )
 
 func TestSweepStagesRepostForStaleUnacked(t *testing.T) {
