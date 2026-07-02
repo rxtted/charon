@@ -47,21 +47,26 @@ func (c *Converger) Run(ctx context.Context) {
 		case <-c.wake:
 		case <-tick.C:
 		}
-		c.pass()
+		c.pass(ctx)
 	}
 }
 
 // pass reconciles every row that needs it. one row's error doesn't starve the
 // rest of the sweep: it's logged and the loop moves on, unless the queue reports
-// a systemic outage, in which case retrying every remaining row is pointless.
-func (c *Converger) pass() {
+// a systemic outage, in which case retrying every remaining row is pointless. it
+// also checks ctx between rows so a shutdown aborts the remaining rows promptly
+// instead of running each one out to its own timeout.
+func (c *Converger) pass(ctx context.Context) {
 	rows, err := c.store.NeedingConverge()
 	if err != nil {
 		slog.Error("converge query failed", "err", err)
 		return
 	}
 	for _, in := range rows {
-		if err := c.reconcile(in); err != nil {
+		if ctx.Err() != nil {
+			return // shutting down: leave the rest for next boot's reconcile
+		}
+		if err := c.reconcile(ctx, in); err != nil {
 			c.errs.Inc()
 			slog.Warn("reconcile failed, will retry", "key", in.DedupKey, "err", err)
 			if c.q.Degraded() {
@@ -74,8 +79,8 @@ func (c *Converger) pass() {
 // reconcile holds the shared key lock for the whole row, so the discord call and
 // the write that records it are atomic against the core and the sweeps. it reloads
 // the row by id under the lock since dedup_key is no longer unique across rows.
-func (c *Converger) reconcile(in *store.Incident) error {
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
+func (c *Converger) reconcile(ctx context.Context, in *store.Incident) error {
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
 	release := c.coord.Lock(in.DedupKey)

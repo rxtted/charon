@@ -161,6 +161,26 @@ func (s *Store) ById(id int64) (*Incident, error) {
 	return s.scanOne(`select `+cols+` from incidents where id=?`, id)
 }
 
+// ActiveMessageIDs returns the discord message ids of active incidents that have
+// a live card. the boot orphan sweep uses this as its keep-list: any bot-authored
+// message in a configured channel that isn't in here gets deleted.
+func (s *Store) ActiveMessageIDs() (map[string]bool, error) {
+	rows, err := s.db.Query(`select message_id from incidents where status='active' and message_id<>''`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
+}
+
 func (s *Store) MarkAllUnconfirmed() error {
 	_, err := s.db.Exec(`update incidents set confirmed=0, version=version+1 where status='active'`)
 	return err

@@ -4,6 +4,9 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	dgo "github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/snowflake/v2"
 )
 
 type fakeActions struct {
@@ -34,6 +37,24 @@ func TestDispatchRoutes(t *testing.T) {
 func TestDispatchNilIsSafe(t *testing.T) {
 	if err := dispatch(nil, "ack", "k", "noah", 0); err != nil {
 		t.Fatal("nil actions should be a no-op, not a panic")
+	}
+}
+
+// TestOrphanIDs covers I1's selection logic: only self-authored messages not in
+// keep are orphans; messages from other users and kept messages are left alone.
+func TestOrphanIDs(t *testing.T) {
+	self := snowflake.ID(100)
+	other := snowflake.ID(200)
+	msgs := []dgo.Message{
+		{ID: snowflake.ID(1), Author: dgo.User{ID: self}},  // orphan: self-authored, not kept
+		{ID: snowflake.ID(2), Author: dgo.User{ID: self}},  // kept: still backs an active incident
+		{ID: snowflake.ID(3), Author: dgo.User{ID: other}}, // not ours: never touch it
+	}
+	keep := map[string]bool{"2": true}
+
+	got := orphanIDs(msgs, self, keep)
+	if len(got) != 1 || got[0] != snowflake.ID(1) {
+		t.Fatalf("orphanIDs() = %v, want [1]", got)
 	}
 }
 

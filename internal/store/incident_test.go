@@ -36,6 +36,30 @@ func TestInsertAndActiveByKey(t *testing.T) {
 	}
 }
 
+// TestActiveMessageIDs covers I1: the boot orphan sweep's keep-list must include
+// only live cards of active incidents, not resolved rows or unposted ones.
+func TestActiveMessageIDs(t *testing.T) {
+	s := newStore(t)
+	active := &Incident{DedupKey: "k1", Channel: "infra", Severity: "warning", Status: "active",
+		Version: 1, Title: "t", MessageID: "m1", CreatedAt: time.Now()}
+	unposted := &Incident{DedupKey: "k2", Channel: "infra", Severity: "warning", Status: "active",
+		Version: 1, Title: "t", MessageID: "", CreatedAt: time.Now()}
+	resolved := &Incident{DedupKey: "k3", Channel: "infra", Severity: "warning", Status: "resolved",
+		Version: 1, Title: "t", MessageID: "m3", CreatedAt: time.Now()}
+	for _, in := range []*Incident{active, unposted, resolved} {
+		if err := s.Insert(in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ids, err := s.ActiveMessageIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 1 || !ids["m1"] {
+		t.Fatalf("ActiveMessageIDs() = %v, want only m1", ids)
+	}
+}
+
 func TestUpdateRejectsStaleVersion(t *testing.T) {
 	s := newStore(t)
 	in := &Incident{DedupKey: "k1", Channel: "infra", Severity: "warning", Status: "active", Version: 1, Title: "t", CreatedAt: time.Now()}

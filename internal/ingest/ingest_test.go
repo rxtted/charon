@@ -36,3 +36,16 @@ func TestIngestTokenRequiredWhenSet(t *testing.T) {
 		t.Fatalf("code = %d, want 401", rr.Code)
 	}
 }
+
+// TestIngestOversizedBodyReturns413 covers I3: a body over MaxBodyBytes must
+// report 413, not 400. that requires the adapter's wrapped read error to still
+// chain to *http.MaxBytesError so ingest's errors.As can see it.
+func TestIngestOversizedBodyReturns413(t *testing.T) {
+	h := Handler([]adapterList{native.New()}, "", 16, func(context.Context, event.Event) error { return nil })
+	body := strings.Repeat("a", 1<<10)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("POST", "/ingest", strings.NewReader(body)))
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("code = %d, want 413", rr.Code)
+	}
+}

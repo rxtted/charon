@@ -59,10 +59,15 @@ func container(in *store.Incident) dgo.LayoutComponent {
 	).WithAccentColor(col)
 }
 
+// noMentions is applied to every rendered message: incident cards are built from
+// ingest text (title/body/host/labels) an attacker controls, so discord must never
+// parse an @everyone/@here/role/user mention out of it.
+var noMentions = &dgo.AllowedMentions{}
+
 func RenderCreate(in *store.Incident) dgo.MessageCreate {
-	return dgo.NewMessageCreateV2(container(in))
+	return dgo.NewMessageCreateV2(container(in)).WithAllowedMentions(noMentions)
 }
 
 func RenderUpdate(in *store.Incident) dgo.MessageUpdate {
-	return dgo.NewMessageUpdateV2(container(in))
+	return dgo.NewMessageUpdateV2(container(in)).WithAllowedMentions(noMentions)
 }

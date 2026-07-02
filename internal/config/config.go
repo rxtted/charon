@@ -71,6 +71,26 @@ func (c Config) ChannelFor(tag string) string {
 	return c.Fallback
 }
 
+// AllChannelIDs returns every configured discord channel id (every routed
+// channel plus the fallback), deduplicated, for boot-time sweeps that need to
+// touch every channel the bot might have posted to.
+func (c Config) AllChannelIDs() []string {
+	seen := make(map[string]bool, len(c.Channels)+1)
+	var ids []string
+	add := func(id string) {
+		if id == "" || seen[id] {
+			return
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	add(c.Fallback)
+	for _, id := range c.Channels {
+		add(id)
+	}
+	return ids
+}
+
 func envOr(lookup func(string) (string, bool), key, def string) string {
 	if v, ok := lookup(key); ok && v != "" {
 		return v

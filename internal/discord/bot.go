@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/disgoorg/disgo"
@@ -135,3 +136,45 @@ func (r restSender) DeleteMsg(ctx context.Context, channelID, msgID string) erro
 
 func (b *Bot) Open(ctx context.Context) error { return b.client.OpenGateway(ctx) }
 func (b *Bot) Close()                         { b.client.Close(context.Background()) }
+
+// SweepOrphans is a one-shot boot reconciliation (I1): a crash between posting a
+// card and writing its message_id can leave a bot-authored card with no matching
+// incident. for each channel it lists the bot's own recent messages and deletes
+// any whose id isn't in keep (the message ids of currently active incidents).
+// best-effort: a channel listing failure or a per-message delete failure is
+// logged and does not block startup or abort the remaining channels.
+func (b *Bot) SweepOrphans(ctx context.Context, channelIDs []string, keep map[string]bool) error {
+	self := b.client.ApplicationID // a bot's user id is its application id
+	for _, chID := range channelIDs {
+		cid, err := snowflake.Parse(chID)
+		if err != nil {
+			slog.Error("sweep orphans: bad channel id", "channel", chID, "err", err)
+			continue
+		}
+		msgs, err := b.client.Rest.GetMessages(cid, 0, 0, 0, 100, rest.WithCtx(ctx))
+		if err != nil {
+			slog.Error("sweep orphans: list messages failed", "channel", chID, "err", err)
+			continue
+		}
+		for _, id := range orphanIDs(msgs, self, keep) {
+			if err := b.client.Rest.DeleteMessage(cid, id, rest.WithCtx(ctx)); err != nil {
+				slog.Error("sweep orphans: delete failed", "channel", chID, "message", id.String(), "err", err)
+			}
+		}
+	}
+	return nil
+}
+
+// orphanIDs returns the ids of self-authored messages in msgs that aren't in
+// keep. split out from SweepOrphans so the selection logic is testable without
+// a live discord REST client.
+func orphanIDs(msgs []dgo.Message, self snowflake.ID, keep map[string]bool) []snowflake.ID {
+	var out []snowflake.ID
+	for _, m := range msgs {
+		if m.Author.ID != self || keep[m.ID.String()] {
+			continue
+		}
+		out = append(out, m.ID)
+	}
+	return out
+}

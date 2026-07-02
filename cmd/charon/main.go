@@ -64,6 +64,15 @@ func run() error {
 		return err
 	}
 
+	// boot orphan sweep (I1): a crash between posting a card and writing its
+	// message_id can leave a bot-authored card with no matching incident. this is
+	// best-effort and never fails startup.
+	if keep, err := st.ActiveMessageIDs(); err != nil {
+		slog.Error("boot orphan sweep: load active message ids failed", "err", err)
+	} else if err := b.SweepOrphans(ctx, cfg.AllChannelIDs(), keep); err != nil {
+		slog.Error("boot orphan sweep failed", "err", err)
+	}
+
 	// wg tracks the converger and sweep-loop goroutines so shutdown can wait for
 	// them to exit before the store and bot are closed out from under them.
 	var wg sync.WaitGroup
@@ -91,6 +100,7 @@ func run() error {
 	h := ingest.Handler(adapter.Registered(), cfg.IngestToken, cfg.MaxBodyBytes, sink)
 	ingestSrv, err := serve(cfg.ListenAddr, h)
 	if err != nil {
+		stop() // cancel ctx first: conv.Run/sweepLoop only exit on ctx.Done, so wg.Wait would hang otherwise
 		wg.Wait()
 		st.Close()
 		return err
@@ -98,6 +108,7 @@ func run() error {
 	metricsSrv, err := serve(cfg.MetricsAddr, m.Handler())
 	if err != nil {
 		shutdownHTTP(ingestSrv)
+		stop()
 		wg.Wait()
 		st.Close()
 		return err
@@ -106,6 +117,7 @@ func run() error {
 	conv.Wake() // initial reconcile on boot
 	if err := b.Open(ctx); err != nil {
 		shutdownHTTP(ingestSrv, metricsSrv)
+		stop()
 		wg.Wait()
 		st.Close()
 		return err

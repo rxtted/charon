@@ -75,6 +75,30 @@ func contains(ss []string, s string) bool {
 	return false
 }
 
+// TestRenderAllowedMentionsIsEmpty covers I2: incident cards render attacker-
+// controlled ingest text, so both create and update messages must carry a
+// non-nil, empty AllowedMentions that parses nothing out of that text.
+func TestRenderAllowedMentionsIsEmpty(t *testing.T) {
+	in := &store.Incident{DedupKey: "k", Severity: "critical", Title: "@everyone t"}
+	create := RenderCreate(in)
+	if create.AllowedMentions == nil {
+		t.Fatal("create: AllowedMentions must not be nil")
+	}
+	if len(create.AllowedMentions.Parse) != 0 || len(create.AllowedMentions.Roles) != 0 ||
+		len(create.AllowedMentions.Users) != 0 || create.AllowedMentions.RepliedUser {
+		t.Fatalf("create: AllowedMentions must parse nothing, got %+v", create.AllowedMentions)
+	}
+
+	update := RenderUpdate(in)
+	if update.AllowedMentions == nil {
+		t.Fatal("update: AllowedMentions must not be nil")
+	}
+	if len(update.AllowedMentions.Parse) != 0 || len(update.AllowedMentions.Roles) != 0 ||
+		len(update.AllowedMentions.Users) != 0 || update.AllowedMentions.RepliedUser {
+		t.Fatalf("update: AllowedMentions must parse nothing, got %+v", update.AllowedMentions)
+	}
+}
+
 // the mirror of the incident package's hash-coverage test: an acked incident must
 // render its ack line and a muted accent, proving those fields reach the render.
 func TestRenderShowsAck(t *testing.T) {

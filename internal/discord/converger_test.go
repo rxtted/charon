@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -29,7 +30,7 @@ func TestReconcilePostsThenMarksConfirmed(t *testing.T) {
 	in := &store.Incident{DedupKey: "k", Channel: "infra", ChannelID: "111", Severity: "warning",
 		Status: "active", Version: 1, Title: "t", DesiredPresent: true, Confirmed: false, CreatedAt: time.Now()}
 	s.Insert(in)
-	if err := cv.reconcile(in); err != nil {
+	if err := cv.reconcile(context.Background(), in); err != nil {
 		t.Fatal(err)
 	}
 	if f.posts != 1 {
@@ -48,7 +49,7 @@ func TestReconcileDeletesWhenAbsent(t *testing.T) {
 	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "resolved", Version: 1,
 		DesiredPresent: false, Confirmed: false, MessageID: "msg", CreatedAt: time.Now()}
 	s.Insert(in)
-	if err := cv.reconcile(in); err != nil {
+	if err := cv.reconcile(context.Background(), in); err != nil {
 		t.Fatal(err)
 	}
 	if del != 1 {
@@ -64,7 +65,7 @@ func TestReconcileDeleteNotFoundConverges(t *testing.T) {
 	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "resolved", Version: 1,
 		DesiredPresent: false, Confirmed: false, MessageID: "msg", CreatedAt: time.Now()}
 	s.Insert(in)
-	if err := cv.reconcile(in); err != nil {
+	if err := cv.reconcile(context.Background(), in); err != nil {
 		t.Fatalf("not-found delete should not propagate an error, got %v", err)
 	}
 	got, _ := s.ById(in.ID)
@@ -81,7 +82,7 @@ func TestReconcileEditNotFoundReposts(t *testing.T) {
 	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "active", Version: 1,
 		DesiredPresent: true, Confirmed: false, MessageID: "stale-msg", CreatedAt: time.Now()}
 	s.Insert(in)
-	if err := cv.reconcile(in); err != nil {
+	if err := cv.reconcile(context.Background(), in); err != nil {
 		t.Fatalf("not-found edit should not propagate an error, got %v", err)
 	}
 	got, _ := s.ById(in.ID)
@@ -131,7 +132,7 @@ func TestPassContinuesAfterRowError(t *testing.T) {
 		}
 	}
 
-	cv.pass()
+	cv.pass(context.Background())
 
 	gotBad, _ := s.ById(bad.ID)
 	gotGood, _ := s.ActiveByKey("good")
@@ -143,5 +144,27 @@ func TestPassContinuesAfterRowError(t *testing.T) {
 	}
 	if cv.q.Degraded() {
 		t.Fatal("a store-level conflict should not mark the discord queue degraded")
+	}
+}
+
+// TestPassStopsOnCancelledContext covers fix 2: a shutdown must abort the
+// remaining rows of a pass promptly rather than running each one out to its
+// own reconcile timeout.
+func TestPassStopsOnCancelledContext(t *testing.T) {
+	cv, s, f := newConv(t)
+	in := &store.Incident{DedupKey: "k", ChannelID: "111", Status: "active", Version: 1,
+		DesiredPresent: true, Confirmed: false, CreatedAt: time.Now()}
+	s.Insert(in)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cv.pass(ctx)
+
+	if f.posts != 0 {
+		t.Fatalf("a cancelled context must not post, got %d posts", f.posts)
+	}
+	got, _ := s.ActiveByKey("k")
+	if got.Confirmed {
+		t.Fatalf("row should still be unconverged: %+v", got)
 	}
 }

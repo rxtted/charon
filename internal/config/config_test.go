@@ -28,3 +28,24 @@ func TestLoadMergesEnvAndYAML(t *testing.T) {
 		t.Fatalf("renotify = %s", cfg.RenotifyEvery)
 	}
 }
+
+// TestAllChannelIDsDedupes covers I1's boot orphan sweep: it needs every
+// distinct channel id, routed or fallback, exactly once.
+func TestAllChannelIDsDedupes(t *testing.T) {
+	env := map[string]string{"CHARON_DISCORD_TOKEN": "tok"}
+	lookup := func(k string) (string, bool) { v, ok := env[k]; return v, ok }
+	cfg, err := Load(lookup, "testdata/config.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := cfg.AllChannelIDs()
+	want := map[string]bool{"111": true, "222": true}
+	if len(ids) != len(want) {
+		t.Fatalf("AllChannelIDs() = %v, want %d distinct ids", ids, len(want))
+	}
+	for _, id := range ids {
+		if !want[id] {
+			t.Fatalf("unexpected id %q in %v", id, ids)
+		}
+	}
+}

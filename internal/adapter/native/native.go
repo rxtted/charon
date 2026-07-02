@@ -25,17 +25,17 @@ func (Adapter) Path() string { return "/ingest" }
 func (Adapter) Match(r *http.Request) ([]event.Event, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", adapter.ErrNotMatched, err)
+		return nil, fmt.Errorf("%w: %w", adapter.ErrNotMatched, err)
 	}
 	var evs []event.Event
 	if t := bytes.TrimLeft(body, " \t\r\n"); len(t) > 0 && t[0] == '[' {
 		if err := json.Unmarshal(body, &evs); err != nil {
-			return nil, fmt.Errorf("%w: %v", adapter.ErrNotMatched, err)
+			return nil, fmt.Errorf("%w: %w", adapter.ErrNotMatched, err)
 		}
 	} else {
 		var ev event.Event
 		if err := json.Unmarshal(body, &ev); err != nil {
-			return nil, fmt.Errorf("%w: %v", adapter.ErrNotMatched, err)
+			return nil, fmt.Errorf("%w: %w", adapter.ErrNotMatched, err)
 		}
 		evs = []event.Event{ev}
 	}
