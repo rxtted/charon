@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/rxtted/cheron/internal/adapter"
-	"github.com/rxtted/cheron/internal/event"
+	"github.com/rxtted/charon/internal/adapter"
+	"github.com/rxtted/charon/internal/event"
 )
 
 type Adapter struct{}

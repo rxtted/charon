@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/rxtted/cheron/internal/adapter"
-	"github.com/rxtted/cheron/internal/event"
+	"github.com/rxtted/charon/internal/adapter"
+	"github.com/rxtted/charon/internal/event"
 )
 
 func Handler(adapters []adapter.Adapter, token string, maxBody int64, sink func(context.Context, event.Event) error) http.Handler {

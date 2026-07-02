@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	dgo "github.com/disgoorg/disgo/discord"
-	"github.com/rxtted/cheron/internal/store"
+	"github.com/rxtted/charon/internal/store"
 )
 
 const flagV2 = dgo.MessageFlagIsComponentsV2

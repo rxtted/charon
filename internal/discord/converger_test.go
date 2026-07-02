@@ -9,8 +9,8 @@ import (
 
 	"github.com/disgoorg/disgo/rest"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rxtted/cheron/internal/lock"
-	"github.com/rxtted/cheron/internal/store"
+	"github.com/rxtted/charon/internal/lock"
+	"github.com/rxtted/charon/internal/store"
 )
 
 func newConv(t *testing.T) (*Converger, *store.Store, *fakeSender) {

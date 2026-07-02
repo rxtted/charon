@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/rxtted/cheron/internal/config"
-	"github.com/rxtted/cheron/internal/lock"
-	"github.com/rxtted/cheron/internal/store"
+	"github.com/rxtted/charon/internal/config"
+	"github.com/rxtted/charon/internal/lock"
+	"github.com/rxtted/charon/internal/store"
 )
 
 type Reaper struct {

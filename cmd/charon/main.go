@@ -12,16 +12,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rxtted/cheron/internal/adapter"
-	_ "github.com/rxtted/cheron/internal/adapter/native" // self-register
-	"github.com/rxtted/cheron/internal/config"
-	"github.com/rxtted/cheron/internal/discord"
-	"github.com/rxtted/cheron/internal/event"
-	"github.com/rxtted/cheron/internal/incident"
-	"github.com/rxtted/cheron/internal/ingest"
-	"github.com/rxtted/cheron/internal/lock"
-	"github.com/rxtted/cheron/internal/metrics"
-	"github.com/rxtted/cheron/internal/store"
+	"github.com/rxtted/charon/internal/adapter"
+	_ "github.com/rxtted/charon/internal/adapter/native" // self-register
+	"github.com/rxtted/charon/internal/config"
+	"github.com/rxtted/charon/internal/discord"
+	"github.com/rxtted/charon/internal/event"
+	"github.com/rxtted/charon/internal/incident"
+	"github.com/rxtted/charon/internal/ingest"
+	"github.com/rxtted/charon/internal/lock"
+	"github.com/rxtted/charon/internal/metrics"
+	"github.com/rxtted/charon/internal/store"
 )
 
 func main() {
