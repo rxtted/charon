@@ -1,0 +1,21 @@
+  charon:
+    image: charon:local
+    container_name: charon
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      CHARON_CONFIG: /config/config.yml
+      CHARON_DB_PATH: /data/charon.db
+      # the process listens on all interfaces inside the container; the ports
+      # publish below are what restrict host exposure to the vlan and loopback.
+      CHARON_LISTEN_ADDR: ":8000"
+      CHARON_METRICS_ADDR: ":9095"
+    volumes:
+      - ./charon-config:/config:ro
+      - ./charon-data:/data
+    ports:
+      - "192.168.20.10:8000:8000"
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:9095:9095"
+    logging: *default-logging
