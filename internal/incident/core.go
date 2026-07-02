@@ -63,7 +63,7 @@ func (c *Core) Handle(ctx context.Context, ev event.Event) error {
 func (c *Core) newIncident(ev event.Event) *store.Incident {
 	now := time.Now()
 	in := &store.Incident{
-		DedupKey: ev.DedupKey, Channel: ev.Channel, ChannelID: c.cfg.ChannelFor(ev.Channel),
+		DedupKey: ev.DedupKey, Source: ev.Source, Channel: ev.Channel, ChannelID: c.cfg.ChannelFor(ev.Channel),
 		Severity: string(ev.Severity), Status: "active", Version: 1,
 		Title: ev.Title, Body: ev.Body, Host: ev.Host, Link: ev.Link, Labels: ev.Labels,
 		DesiredPresent: true, Confirmed: false, CreatedAt: now, LastSeenFiring: now,

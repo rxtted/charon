@@ -34,6 +34,14 @@ func fire(ch, key string) event.Event {
 	return e
 }
 
+func TestNewIncidentCarriesSource(t *testing.T) {
+	c, _, _ := newCore(t)
+	in := c.newIncident(fire("infra", "k"))
+	if in.Source != "grafana" {
+		t.Fatalf("source = %q, want grafana", in.Source)
+	}
+}
+
 func TestFiringCreatesIncident(t *testing.T) {
 	c, s, w := newCore(t)
 	if err := c.Handle(context.Background(), fire("infra", "k")); err != nil {
