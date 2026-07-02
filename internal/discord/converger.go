@@ -85,7 +85,7 @@ func (c *Converger) reconcile(ctx context.Context, in *store.Incident) error {
 
 	release := c.coord.Lock(in.DedupKey)
 	defer release()
-	in, err := c.store.ById(in.ID) // any status: a resolved row still owes a delete
+	in, err := c.store.ByID(in.ID) // any status: a resolved row still owes a delete
 	if err != nil || in == nil {
 		return err
 	}

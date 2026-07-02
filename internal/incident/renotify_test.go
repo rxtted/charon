@@ -51,27 +51,22 @@ func TestSweepSkipsFreshlySnoozed(t *testing.T) {
 	}
 	t.Cleanup(func() { s.Close() })
 	cfg := config.Config{Channels: map[string]string{"infra": "111"}, Fallback: "111"}
-	coord := lock.New() // shared lock instance
+	coord := lock.New()
 	c := New(s, cfg, coord, &fakeWaker{})
 
-	// fire an incident
 	c.Handle(context.Background(), fire("infra", "k"))
 	in, _ := s.ActiveByKey("k")
-	// set up as if it was posted 5 hours ago
 	old := time.Now().Add(-5 * time.Hour)
 	in.MessageID, in.Confirmed, in.LastNotifiedAt = "msg1", true, &old
 	s.Update(in)
 
-	// snooze it into the future
 	c.Snooze(context.Background(), "k", "noah", 1*time.Hour)
 
-	// run renotifier sweep
 	r := NewRenotifier(s, config.Config{RenotifyEvery: 4 * time.Hour}, coord, &fakeWaker{})
 	if err := r.Sweep(time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
-	// verify it was not reposted
 	got, _ := s.ActiveByKey("k")
 	if got.StaleMessageID != "" {
 		t.Fatalf("snoozed incident must not be reposted; got StaleMessageID=%q", got.StaleMessageID)

@@ -47,8 +47,9 @@ func (e *Event) Normalize() {
 	}
 }
 
-// DeriveKey is the fallback identity when an emitter omits DedupKey. it is a
-// fallback, not the intended path: a title that reworks between firings splits.
+// DeriveKey is the fallback identity when an emitter omits DedupKey. a title that
+// reworks between firings changes the hash, so the incident splits; emitters that
+// care about stable dedup should set DedupKey themselves.
 func DeriveKey(source, channel, title string) string {
 	sum := sha256.Sum256([]byte(source + "\x00" + channel + "\x00" + title))
 	return "derived:" + hex.EncodeToString(sum[:8])

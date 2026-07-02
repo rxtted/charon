@@ -121,9 +121,8 @@ func TestResolvedUnknownIsNoOp(t *testing.T) {
 	}
 }
 
-// guards the coupling to group D's renderer: every field the renderer shows must
-// change displayHash, or a change would render but never mark the incident
-// unconfirmed and no edit would fire. Task 11 has the mirror test on the render.
+// every field the renderer shows must change displayHash, or a repeat firing
+// would render new content but never mark the card unconfirmed, so no edit fires.
 func TestDisplayHashCoversDisplayFields(t *testing.T) {
 	base := &store.Incident{Severity: "warning", Title: "t", Body: "b", Host: "h"}
 	h0 := displayHash(base)

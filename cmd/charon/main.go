@@ -135,9 +135,8 @@ func run() error {
 	return nil
 }
 
-// serve binds synchronously so a failed bind is a fatal startup error, not a
-// silent goroutine death while the gateway still opens. the caller owns the
-// returned server's shutdown.
+// serve binds synchronously so a failed bind surfaces as a fatal startup error
+// while the gateway still opens. the caller owns the returned server's shutdown.
 func serve(addr string, h http.Handler) (*http.Server, error) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {

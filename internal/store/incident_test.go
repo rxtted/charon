@@ -37,7 +37,7 @@ func TestInsertAndActiveByKey(t *testing.T) {
 }
 
 // TestActiveMessageIDs covers I1: the boot orphan sweep's keep-list must include
-// only live cards of active incidents, not resolved rows or unposted ones.
+// only live cards of active incidents; resolved rows and unposted ones don't belong.
 func TestActiveMessageIDs(t *testing.T) {
 	s := newStore(t)
 	active := &Incident{DedupKey: "k1", Channel: "infra", Severity: "warning", Status: "active",

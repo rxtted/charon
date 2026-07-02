@@ -42,7 +42,6 @@ const cols = `id,dedup_key,channel,channel_id,severity,status,version,title,body
 desired_present,content_hash,message_id,stale_message_id,created_at,last_seen_firing,confirmed,heartbeat,
 acked_at,acked_by,snoozed_until,last_notified_at,resolved_at`
 
-// b2i converts bool to int (1 for true, 0 for false)
 func b2i(b bool) int {
 	if b {
 		return 1
@@ -50,7 +49,6 @@ func b2i(b bool) int {
 	return 0
 }
 
-// unixOrZero returns the unix timestamp of t, or 0 if t is zero
 func unixOrZero(t time.Time) int64 {
 	if t.IsZero() {
 		return 0
@@ -58,7 +56,6 @@ func unixOrZero(t time.Time) int64 {
 	return t.Unix()
 }
 
-// unixPtr returns a pointer to the unix timestamp of t, or nil if t is nil
 func unixPtr(t *time.Time) *int64 {
 	if t == nil {
 		return nil
@@ -67,7 +64,6 @@ func unixPtr(t *time.Time) *int64 {
 	return &unix
 }
 
-// nullTime converts a sql.NullInt64 to *time.Time, or nil if not valid
 func nullTime(n sql.NullInt64) *time.Time {
 	if !n.Valid || n.Int64 == 0 {
 		return nil
@@ -156,8 +152,8 @@ func (s *Store) NeedingConverge() ([]*Incident, error) {
         where confirmed=0 or stale_message_id<>'' or (desired_present=0 and message_id<>'')`)
 }
 
-// ById returns the incident regardless of status (the converger needs resolved rows).
-func (s *Store) ById(id int64) (*Incident, error) {
+// ByID returns the incident regardless of status (the converger needs resolved rows).
+func (s *Store) ByID(id int64) (*Incident, error) {
 	return s.scanOne(`select `+cols+` from incidents where id=?`, id)
 }
 

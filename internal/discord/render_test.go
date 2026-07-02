@@ -24,7 +24,6 @@ func walk(components []dgo.LayoutComponent) []dgo.Component {
 	return out
 }
 
-// customIDs walks mc.Components and collects every button's CustomID.
 func customIDs(mc dgo.MessageCreate) []string {
 	var ids []string
 	for _, c := range walk(mc.Components) {
@@ -35,7 +34,6 @@ func customIDs(mc dgo.MessageCreate) []string {
 	return ids
 }
 
-// renderText walks mc.Components and joins every Text Display's content.
 func renderText(mc dgo.MessageCreate) string {
 	var parts []string
 	for _, c := range walk(mc.Components) {

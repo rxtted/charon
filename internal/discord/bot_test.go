@@ -46,7 +46,7 @@ func TestOrphanIDs(t *testing.T) {
 	self := snowflake.ID(100)
 	other := snowflake.ID(200)
 	msgs := []dgo.Message{
-		{ID: snowflake.ID(1), Author: dgo.User{ID: self}},  // orphan: self-authored, not kept
+		{ID: snowflake.ID(1), Author: dgo.User{ID: self}},  // orphan: self-authored, missing from keep
 		{ID: snowflake.ID(2), Author: dgo.User{ID: self}},  // kept: still backs an active incident
 		{ID: snowflake.ID(3), Author: dgo.User{ID: other}}, // not ours: never touch it
 	}

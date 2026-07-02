@@ -31,7 +31,7 @@ func TestSweepLoopExitsOnContextCancel(t *testing.T) {
 // exit on ctx.Done(). if an error path called wg.Wait() without first cancelling
 // ctx (as run() briefly did), the process would hang forever on an ordinary
 // startup failure like a bind conflict instead of fast-failing. this mirrors
-// run()'s exact goroutine shape and asserts the fixed order - cancel, then wait -
+// run()'s exact goroutine shape and asserts the fixed order (cancel, then wait)
 // completes quickly.
 func TestShutdownCancelsContextBeforeWaitingOnGoroutines(t *testing.T) {
 	ctx, stop := context.WithCancel(context.Background())

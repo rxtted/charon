@@ -58,7 +58,7 @@ func TestReconcileDeletesWhenAbsent(t *testing.T) {
 }
 
 // TestReconcileDeleteNotFoundConverges covers C2: a delete-not-found means the
-// message is already gone, so it must count as success, not an error.
+// message is already gone, so it must count as a success.
 func TestReconcileDeleteNotFoundConverges(t *testing.T) {
 	cv, s, f := newConv(t)
 	f.onDeleteErr = func() error { return &rest.Error{Code: rest.JSONErrorCodeUnknownMessage} }
@@ -68,7 +68,7 @@ func TestReconcileDeleteNotFoundConverges(t *testing.T) {
 	if err := cv.reconcile(context.Background(), in); err != nil {
 		t.Fatalf("not-found delete should not propagate an error, got %v", err)
 	}
-	got, _ := s.ById(in.ID)
+	got, _ := s.ByID(in.ID)
 	if got.MessageID != "" || !got.Confirmed {
 		t.Fatalf("row should be converged with message_id cleared: %+v", got)
 	}
@@ -85,7 +85,7 @@ func TestReconcileEditNotFoundReposts(t *testing.T) {
 	if err := cv.reconcile(context.Background(), in); err != nil {
 		t.Fatalf("not-found edit should not propagate an error, got %v", err)
 	}
-	got, _ := s.ById(in.ID)
+	got, _ := s.ByID(in.ID)
 	if got.MessageID != "" || got.Confirmed {
 		t.Fatalf("row should be cleared to repost: %+v", got)
 	}
@@ -113,8 +113,8 @@ func TestIsNotFound(t *testing.T) {
 
 // TestPassContinuesAfterRowError covers C2: one bad row must not starve the
 // rest of the sweep behind it. the bad row's error is a genuine store-level
-// conflict (a concurrent writer bumps its version mid-post), not a discord
-// failure, so the queue never looks degraded and the pass must not bail early.
+// conflict (a concurrent writer bumps its version mid-post), so the queue never
+// looks degraded and the pass must not bail early.
 func TestPassContinuesAfterRowError(t *testing.T) {
 	cv, s, f := newConv(t)
 	bad := &store.Incident{DedupKey: "bad", ChannelID: "111", Status: "active", Version: 1,
@@ -134,7 +134,7 @@ func TestPassContinuesAfterRowError(t *testing.T) {
 
 	cv.pass(context.Background())
 
-	gotBad, _ := s.ById(bad.ID)
+	gotBad, _ := s.ByID(bad.ID)
 	gotGood, _ := s.ActiveByKey("good")
 	if gotBad.Confirmed {
 		t.Fatalf("bad row should still be unconverged: %+v", gotBad)
