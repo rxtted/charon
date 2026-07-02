@@ -20,6 +20,14 @@ func NewRenotifier(s *store.Store, cfg config.Config, coord *lock.Keyed, w Waker
 	return &Renotifier{store: s, cfg: cfg, coord: coord, wake: w}
 }
 
+// repostBlocked reports whether an incident must not be reposted right now:
+// acked, has no live message, or is still snoozed. evaluated under the key lock
+// so a concurrent ack/snooze is respected even when the batch select predated it.
+func repostBlocked(in *store.Incident, now time.Time) bool {
+	return in.AckedAt != nil || in.MessageID == "" ||
+		(in.SnoozedUntil != nil && in.SnoozedUntil.After(now))
+}
+
 func (r *Renotifier) Sweep(now time.Time) error {
 	due, err := r.store.DueForRenotify(now, now.Add(-r.cfg.RenotifyEvery))
 	if err != nil {
@@ -30,8 +38,7 @@ func (r *Renotifier) Sweep(now time.Time) error {
 		fresh, err := r.store.ActiveByKey(in.DedupKey)
 		// re-verify under the lock: a concurrent ack or snooze (same key lock)
 		// could have landed since the unlocked batch select.
-		if err != nil || fresh == nil || fresh.AckedAt != nil || fresh.MessageID == "" ||
-			(fresh.SnoozedUntil != nil && fresh.SnoozedUntil.After(now)) {
+		if err != nil || fresh == nil || repostBlocked(fresh, now) {
 			release()
 			continue
 		}

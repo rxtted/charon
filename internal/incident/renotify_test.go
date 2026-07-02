@@ -80,3 +80,58 @@ func TestSweepSkipsFreshlySnoozed(t *testing.T) {
 		t.Fatal("SnoozedUntil must still be set")
 	}
 }
+
+func TestRepostBlocked(t *testing.T) {
+	now := time.Now()
+	ackedTime := now.Add(-1 * time.Minute)
+	snoozeUntil := now.Add(1 * time.Hour)
+
+	tests := []struct {
+		name     string
+		incident *store.Incident
+		want     bool
+	}{
+		{
+			name: "acked incident is blocked",
+			incident: &store.Incident{
+				AckedAt:   &ackedTime,
+				MessageID: "msg1",
+			},
+			want: true,
+		},
+		{
+			name: "incident with no message is blocked",
+			incident: &store.Incident{
+				MessageID: "",
+			},
+			want: true,
+		},
+		{
+			name: "snoozed into the future is blocked",
+			incident: &store.Incident{
+				MessageID:    "msg1",
+				SnoozedUntil: &snoozeUntil,
+				AckedAt:      nil,
+			},
+			want: true,
+		},
+		{
+			name: "plain due incident is not blocked",
+			incident: &store.Incident{
+				MessageID:    "msg1",
+				AckedAt:      nil,
+				SnoozedUntil: nil,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := repostBlocked(tt.incident, now)
+			if got != tt.want {
+				t.Errorf("repostBlocked() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
