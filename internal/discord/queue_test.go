@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,18 +9,32 @@ import (
 )
 
 type fakeSender struct {
-	posts    int
-	onDelete func()
+	posts       int
+	onPost      func(channelID string)
+	onDelete    func()
+	onEdit      func() error
+	onDeleteErr func() error
 }
 
-func (f *fakeSender) Post(_ string, _ dgo.MessageCreate) (string, error) {
+func (f *fakeSender) Post(_ context.Context, channelID string, _ dgo.MessageCreate) (string, error) {
 	f.posts++
+	if f.onPost != nil {
+		f.onPost(channelID)
+	}
 	return "msg", nil
 }
-func (f *fakeSender) Edit(_, _ string, _ dgo.MessageUpdate) error { return nil }
-func (f *fakeSender) DeleteMsg(_, _ string) error {
+func (f *fakeSender) Edit(_ context.Context, _, _ string, _ dgo.MessageUpdate) error {
+	if f.onEdit != nil {
+		return f.onEdit()
+	}
+	return nil
+}
+func (f *fakeSender) DeleteMsg(_ context.Context, _, _ string) error {
 	if f.onDelete != nil {
 		f.onDelete()
+	}
+	if f.onDeleteErr != nil {
+		return f.onDeleteErr()
 	}
 	return nil
 }
@@ -29,7 +44,7 @@ func TestQueuePacesPerChannel(t *testing.T) {
 	q := NewQueue(f, 50*time.Millisecond, 1)
 	start := time.Now()
 	for i := 0; i < 3; i++ {
-		if _, err := q.Post("chan-a", dgo.MessageCreate{}); err != nil {
+		if _, err := q.Post(context.Background(), "chan-a", dgo.MessageCreate{}); err != nil {
 			t.Fatal(err)
 		}
 	}

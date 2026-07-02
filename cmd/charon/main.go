@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -39,16 +40,16 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer st.Close()
 
 	m := metrics.New()
 	b, err := discord.NewBot(cfg, nil) // actions late-bound below
 	if err != nil {
+		st.Close()
 		return err
 	}
 	q := discord.NewQueue(b.Sender(), 1100*time.Millisecond, 1) // about one create per 1.1s per channel
 	coord := lock.New()                                         // one shared per-key lock for every mutator
-	conv := discord.NewConverger(st, q, coord)
+	conv := discord.NewConverger(st, q, coord, m.ConvergeErrors)
 	core := incident.New(st, cfg, coord, conv)
 	b.SetActions(core) // core satisfies discord.Actions
 
@@ -59,53 +60,88 @@ func run() error {
 	defer stop()
 
 	if err := core.MarkUnconfirmed(ctx); err != nil {
+		st.Close()
 		return err
 	}
-	go conv.Run(ctx)
-	go sweepLoop(ctx, time.Minute, func(now time.Time) {
-		degraded := q.Degraded()
-		m.Degraded.Set(boolToFloat(degraded))
-		if n, err := st.CountActive(); err == nil {
-			m.ActiveIncidents.Set(float64(n))
-		}
-		if !degraded { // pause re-notify while the discord path is down; the converger catches up on recovery
-			_ = renot.Sweep(now)
-		}
-		_ = reap.Sweep(now) // the reaper only touches the store; safe while degraded
-	})
+
+	// wg tracks the converger and sweep-loop goroutines so shutdown can wait for
+	// them to exit before the store and bot are closed out from under them.
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); conv.Run(ctx) }()
+	go func() {
+		defer wg.Done()
+		sweepLoop(ctx, time.Minute, func(now time.Time) {
+			degraded := q.Degraded()
+			m.Degraded.Set(boolToFloat(degraded))
+			if n, err := st.CountActive(); err == nil {
+				m.ActiveIncidents.Set(float64(n))
+			}
+			if !degraded { // pause re-notify while the discord path is down; the converger catches up on recovery
+				_ = renot.Sweep(now)
+			}
+			_ = reap.Sweep(now) // the reaper only touches the store; safe while degraded
+		})
+	}()
 
 	sink := func(ctx context.Context, ev event.Event) error {
 		m.IngestTotal.WithLabelValues(string(ev.Status)).Inc()
 		return core.Handle(ctx, ev)
 	}
 	h := ingest.Handler(adapter.Registered(), cfg.IngestToken, cfg.MaxBodyBytes, sink)
-	if err := serve(ctx, cfg.ListenAddr, h); err != nil {
+	ingestSrv, err := serve(cfg.ListenAddr, h)
+	if err != nil {
+		wg.Wait()
+		st.Close()
 		return err
 	}
-	if err := serve(ctx, cfg.MetricsAddr, m.Handler()); err != nil {
+	metricsSrv, err := serve(cfg.MetricsAddr, m.Handler())
+	if err != nil {
+		shutdownHTTP(ingestSrv)
+		wg.Wait()
+		st.Close()
 		return err
 	}
 
 	conv.Wake() // initial reconcile on boot
 	if err := b.Open(ctx); err != nil {
+		shutdownHTTP(ingestSrv, metricsSrv)
+		wg.Wait()
+		st.Close()
 		return err
 	}
-	defer b.Close()
+
 	<-ctx.Done()
+
+	// shutdown order matters: drain in-flight HTTP handlers first, then let the
+	// converger and sweep loop finish their current pass, then close the bot,
+	// then close the store last. nothing may touch the store or bot once closed.
+	shutdownHTTP(ingestSrv, metricsSrv)
+	wg.Wait()
+	b.Close()
+	st.Close()
 	return nil
 }
 
 // serve binds synchronously so a failed bind is a fatal startup error, not a
-// silent goroutine death while the gateway still opens.
-func serve(ctx context.Context, addr string, h http.Handler) error {
+// silent goroutine death while the gateway still opens. the caller owns the
+// returned server's shutdown.
+func serve(addr string, h http.Handler) (*http.Server, error) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("bind %s: %w", addr, err)
+		return nil, fmt.Errorf("bind %s: %w", addr, err)
 	}
 	srv := &http.Server{Handler: h}
 	go func() { _ = srv.Serve(ln) }()
-	context.AfterFunc(ctx, func() { _ = srv.Shutdown(context.Background()) })
-	return nil
+	return srv, nil
+}
+
+func shutdownHTTP(servers ...*http.Server) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for _, srv := range servers {
+		_ = srv.Shutdown(ctx)
+	}
 }
 
 func sweepLoop(ctx context.Context, every time.Duration, fn func(time.Time)) {

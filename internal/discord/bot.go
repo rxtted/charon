@@ -9,6 +9,7 @@ import (
 	"github.com/disgoorg/disgo/bot"
 	dgo "github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
+	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/rotten-division/charon/internal/config"
 )
@@ -115,21 +116,21 @@ func (b *Bot) Sender() sender { return restSender{b.client} }
 
 type restSender struct{ c *bot.Client }
 
-func (r restSender) Post(channelID string, mc dgo.MessageCreate) (string, error) {
-	m, err := r.c.Rest.CreateMessage(snowflake.MustParse(channelID), mc)
+func (r restSender) Post(ctx context.Context, channelID string, mc dgo.MessageCreate) (string, error) {
+	m, err := r.c.Rest.CreateMessage(snowflake.MustParse(channelID), mc, rest.WithCtx(ctx))
 	if err != nil {
 		return "", err
 	}
 	return m.ID.String(), nil
 }
 
-func (r restSender) Edit(channelID, msgID string, mu dgo.MessageUpdate) error {
-	_, err := r.c.Rest.UpdateMessage(snowflake.MustParse(channelID), snowflake.MustParse(msgID), mu)
+func (r restSender) Edit(ctx context.Context, channelID, msgID string, mu dgo.MessageUpdate) error {
+	_, err := r.c.Rest.UpdateMessage(snowflake.MustParse(channelID), snowflake.MustParse(msgID), mu, rest.WithCtx(ctx))
 	return err
 }
 
-func (r restSender) DeleteMsg(channelID, msgID string) error {
-	return r.c.Rest.DeleteMessage(snowflake.MustParse(channelID), snowflake.MustParse(msgID))
+func (r restSender) DeleteMsg(ctx context.Context, channelID, msgID string) error {
+	return r.c.Rest.DeleteMessage(snowflake.MustParse(channelID), snowflake.MustParse(msgID), rest.WithCtx(ctx))
 }
 
 func (b *Bot) Open(ctx context.Context) error { return b.client.OpenGateway(ctx) }

@@ -11,9 +11,9 @@ import (
 )
 
 type sender interface {
-	Post(channelID string, mc dgo.MessageCreate) (string, error)
-	Edit(channelID, msgID string, mu dgo.MessageUpdate) error
-	DeleteMsg(channelID, msgID string) error
+	Post(ctx context.Context, channelID string, mc dgo.MessageCreate) (string, error)
+	Edit(ctx context.Context, channelID, msgID string, mu dgo.MessageUpdate) error
+	DeleteMsg(ctx context.Context, channelID, msgID string) error
 }
 
 type Queue struct {
@@ -37,25 +37,33 @@ func (q *Queue) limiter(channelID string) *rate.Limiter {
 	return actual.(*rate.Limiter)
 }
 
-func (q *Queue) wait(channelID string) { _ = q.limiter(channelID).Wait(context.Background()) }
+func (q *Queue) wait(ctx context.Context, channelID string) error {
+	return q.limiter(channelID).Wait(ctx)
+}
 
-func (q *Queue) Post(channelID string, mc dgo.MessageCreate) (string, error) {
-	q.wait(channelID)
-	id, err := q.s.Post(channelID, mc)
+func (q *Queue) Post(ctx context.Context, channelID string, mc dgo.MessageCreate) (string, error) {
+	if err := q.wait(ctx, channelID); err != nil {
+		return "", err
+	}
+	id, err := q.s.Post(ctx, channelID, mc)
 	q.degraded.Store(err != nil)
 	return id, err
 }
 
-func (q *Queue) Edit(channelID, msgID string, mu dgo.MessageUpdate) error {
-	q.wait(channelID)
-	err := q.s.Edit(channelID, msgID, mu)
+func (q *Queue) Edit(ctx context.Context, channelID, msgID string, mu dgo.MessageUpdate) error {
+	if err := q.wait(ctx, channelID); err != nil {
+		return err
+	}
+	err := q.s.Edit(ctx, channelID, msgID, mu)
 	q.degraded.Store(err != nil)
 	return err
 }
 
-func (q *Queue) DeleteMsg(channelID, msgID string) error {
-	q.wait(channelID)
-	err := q.s.DeleteMsg(channelID, msgID)
+func (q *Queue) DeleteMsg(ctx context.Context, channelID, msgID string) error {
+	if err := q.wait(ctx, channelID); err != nil {
+		return err
+	}
+	err := q.s.DeleteMsg(ctx, channelID, msgID)
 	q.degraded.Store(err != nil)
 	return err
 }
