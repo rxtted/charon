@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -56,13 +55,39 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
 	// databases created before the source column need it added; the create-table
-	// above is a no-op on an existing table. duplicate-column on a fresh db is fine.
-	if _, err := db.Exec(`alter table incidents add column source text not null default ''`); err != nil &&
-		!strings.Contains(err.Error(), "duplicate column") {
+	// above is a no-op on an existing table.
+	has, err := hasColumn(db, "source")
+	if err != nil {
 		db.Close()
-		return nil, fmt.Errorf("add source column: %w", err)
+		return nil, fmt.Errorf("check source column: %w", err)
+	}
+	if !has {
+		if _, err := db.Exec(`alter table incidents add column source text not null default ''`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("add source column: %w", err)
+		}
 	}
 	return &Store{db: db}, nil
+}
+
+func hasColumn(db *sql.DB, col string) (bool, error) {
+	rows, err := db.Query(`pragma table_info(incidents)`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, ctype string
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return false, err
+		}
+		if name == col {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 func (s *Store) Close() error { return s.db.Close() }
