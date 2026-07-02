@@ -79,7 +79,7 @@ func Build(in *store.Incident, st Style) Rendered {
 		if !ok {
 			continue
 		}
-		if !isHTTPURL(u) {
+		if !IsHTTPURL(u) {
 			slog.Warn("dropping link with non-http url", "source", in.Source, "url", u)
 			continue
 		}
@@ -94,15 +94,6 @@ func Build(in *store.Incident, st Style) Rendered {
 // than leaving a dangling label. {duration} stays a literal token for the render
 // layer, which expands it live without touching the hash.
 func expander(in *store.Incident) func(string) (string, bool) {
-	base := map[string]string{
-		"title":    in.Title,
-		"body":     in.Body,
-		"source":   in.Source,
-		"host":     in.Host,
-		"severity": titleCase(in.Severity),
-		"link":     in.Link,
-		"time":     in.CreatedAt.Format("15:04"),
-	}
 	return func(s string) (string, bool) {
 		ok := true
 		out := placeholder.ReplaceAllStringFunc(s, func(m string) string {
@@ -114,7 +105,7 @@ func expander(in *store.Incident) func(string) (string, bool) {
 			if strings.HasPrefix(key, "labels.") {
 				v = in.Labels[strings.TrimPrefix(key, "labels.")]
 			} else {
-				v = base[key]
+				v, _ = baseValue(in, key)
 			}
 			if v == "" {
 				ok = false
@@ -125,7 +116,37 @@ func expander(in *store.Incident) func(string) (string, bool) {
 	}
 }
 
-func isHTTPURL(s string) bool {
+// baseValue owns the closed placeholder set: everything but {labels.<key>} and
+// {duration}, which callers special-case. it's the one place a token maps to a
+// value, so config validation (through AllowedToken) can't drift from what renders.
+func baseValue(in *store.Incident, key string) (string, bool) {
+	switch key {
+	case "title":
+		return in.Title, true
+	case "body":
+		return in.Body, true
+	case "source":
+		return in.Source, true
+	case "host":
+		return in.Host, true
+	case "severity":
+		return titleCase(in.Severity), true
+	case "link":
+		return in.Link, true
+	case "time":
+		return in.CreatedAt.Format("15:04"), true
+	}
+	return "", false
+}
+
+// AllowedToken reports whether key is a base placeholder token. config validation
+// calls this so the allow-list has one owner, here.
+func AllowedToken(key string) bool {
+	_, ok := baseValue(&store.Incident{}, key)
+	return ok
+}
+
+func IsHTTPURL(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
@@ -158,7 +179,7 @@ func titleCase(s string) string {
 
 // parseHex reads a 6-digit hex colour; config validation guarantees it parses.
 func parseHex(s string) int {
-	n := 0
+	var n int
 	for _, c := range s {
 		n <<= 4
 		switch {

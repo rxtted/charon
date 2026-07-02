@@ -21,6 +21,7 @@ func TestContentHashCoversContentNotPresentation(t *testing.T) {
 		func(r *Rendered) { r.Description = "x" },
 		func(r *Rendered) { r.Severity = "Warning" },
 		func(r *Rendered) { r.Glance[0].Value = "x" },
+		func(r *Rendered) { r.Glance[0].Code = !r.Glance[0].Code },
 		func(r *Rendered) { r.Data[0].Value = "x" },
 		func(r *Rendered) { r.Footer[0] = "x" },
 		func(r *Rendered) { r.Note = "✓ Acknowledged by noah" },
