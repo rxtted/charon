@@ -29,10 +29,14 @@ func (r *Reaper) Sweep(now time.Time) error {
 	for _, in := range due {
 		release := r.coord.Lock(in.DedupKey)
 		fresh, err := r.store.ActiveByKey(in.DedupKey)
-		if err == nil && fresh != nil && fresh.Heartbeat {
-			markResolved(fresh)
-			err = r.store.Update(fresh)
+		// re-verify under the lock: skip a row a concurrent resolve closed, or one
+		// that is not heartbeat-backed. only a real close below wakes the converger.
+		if err != nil || fresh == nil || !fresh.Heartbeat {
+			release()
+			continue
 		}
+		markResolved(fresh)
+		err = r.store.Update(fresh)
 		release()
 		if err != nil && !errors.Is(err, store.ErrStale) {
 			return err
@@ -44,7 +48,7 @@ func (r *Reaper) Sweep(now time.Time) error {
 	return nil
 }
 
-// markUnconfirmed is a boot step: active incidents are re-checked against discord.
+// MarkUnconfirmed is a boot step: active incidents are re-checked against discord.
 func (c *Core) MarkUnconfirmed(ctx context.Context) error {
 	return c.store.MarkAllUnconfirmed()
 }
