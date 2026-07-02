@@ -45,7 +45,7 @@ func renderText(mc dgo.MessageCreate) string {
 }
 
 func TestRenderCreateHasV2FlagAndButtons(t *testing.T) {
-	in := &store.Incident{DedupKey: "k1", Severity: "critical", Title: "titan down", Host: "titan"}
+	in := &store.Incident{DedupKey: "k1", Severity: "critical", Title: "host down", Host: "host-a"}
 	mc := RenderCreate(in)
 	if mc.Flags&flagV2 == 0 {
 		t.Fatal("components v2 flag not set")
