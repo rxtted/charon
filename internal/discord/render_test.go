@@ -3,10 +3,9 @@ package discord
 import (
 	"strings"
 	"testing"
-	"time"
 
 	dgo "github.com/disgoorg/disgo/discord"
-	"github.com/rxtted/charon/internal/store"
+	"github.com/rxtted/charon/internal/card"
 )
 
 // walk yields every component in mc, recursing into containers/action rows via
@@ -44,9 +43,18 @@ func renderText(mc dgo.MessageCreate) string {
 	return strings.Join(parts, "\n")
 }
 
-func TestRenderCreate(t *testing.T) {
-	in := &store.Incident{DedupKey: "k1", Severity: "critical", Title: "host down", Host: "host-a"}
-	mc := RenderCreate(in)
+func contains(ss []string, s string) bool {
+	for _, x := range ss {
+		if x == s || strings.HasPrefix(x, s) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRenderV2AndCustomIDs(t *testing.T) {
+	r := card.Rendered{Title: "host down", Severity: "Critical", Description: "d", DedupKey: "k1"}
+	mc := RenderCreate(r, 52)
 	if mc.Flags&flagV2 == 0 {
 		t.Fatal("components v2 flag not set")
 	}
@@ -58,52 +66,65 @@ func TestRenderCreate(t *testing.T) {
 	}
 }
 
-func TestAccentBySeverity(t *testing.T) {
-	if accent("critical") == accent("warning") || accent("warning") == accent("info") {
-		t.Fatal("severities must map to distinct accent colours")
-	}
-}
-
-func contains(ss []string, s string) bool {
-	for _, x := range ss {
-		if x == s || strings.HasPrefix(x, s) {
-			return true
+// incident cards render attacker-controlled ingest text, so both create and update
+// carry a non-nil, empty AllowedMentions that parses nothing out of that text.
+func TestRenderNoMentions(t *testing.T) {
+	r := card.Rendered{Title: "@everyone t", Severity: "Critical"}
+	for _, m := range []*dgo.AllowedMentions{RenderCreate(r, 52).AllowedMentions, RenderUpdate(r, 52).AllowedMentions} {
+		if m == nil {
+			t.Fatal("AllowedMentions must not be nil")
+		}
+		if len(m.Parse) != 0 || len(m.Roles) != 0 || len(m.Users) != 0 || m.RepliedUser {
+			t.Fatalf("AllowedMentions must parse nothing, got %+v", m)
 		}
 	}
-	return false
 }
 
-// incident cards render attacker-
-// controlled ingest text, so both create and update messages must carry a
-// non-nil, empty AllowedMentions that parses nothing out of that text.
-func TestRenderNoMentions(t *testing.T) {
-	in := &store.Incident{DedupKey: "k", Severity: "critical", Title: "@everyone t"}
-	create := RenderCreate(in)
-	if create.AllowedMentions == nil {
-		t.Fatal("create: AllowedMentions must not be nil")
-	}
-	if len(create.AllowedMentions.Parse) != 0 || len(create.AllowedMentions.Roles) != 0 ||
-		len(create.AllowedMentions.Users) != 0 || create.AllowedMentions.RepliedUser {
-		t.Fatalf("create: AllowedMentions must parse nothing, got %+v", create.AllowedMentions)
-	}
-
-	update := RenderUpdate(in)
-	if update.AllowedMentions == nil {
-		t.Fatal("update: AllowedMentions must not be nil")
-	}
-	if len(update.AllowedMentions.Parse) != 0 || len(update.AllowedMentions.Roles) != 0 ||
-		len(update.AllowedMentions.Users) != 0 || update.AllowedMentions.RepliedUser {
-		t.Fatalf("update: AllowedMentions must parse nothing, got %+v", update.AllowedMentions)
-	}
-}
-
-// the mirror of the incident package's hash-coverage test: an acked incident must
-// render its ack line and a muted accent, proving those fields reach the render.
 func TestRenderShowsAck(t *testing.T) {
-	now := time.Now()
-	who := "noah"
-	in := &store.Incident{DedupKey: "k", Severity: "critical", Title: "t", AckedAt: &now, AckedBy: &who}
-	if !strings.Contains(renderText(RenderCreate(in)), "acknowledged by noah") {
+	r := card.Rendered{Title: "t", Severity: "Critical", Description: "d", Note: "✓ Acknowledged by noah"}
+	if !strings.Contains(renderText(RenderCreate(r, 52)), "Acknowledged by noah") {
 		t.Fatal("ack not rendered")
+	}
+}
+
+func TestRenderBareCardDropsIcon(t *testing.T) {
+	r := card.Rendered{Title: "Nightly backup completed", Severity: "Info", Icon: "https://x/i.png",
+		Footer: []string{"restic"}}
+	txt := renderText(RenderCreate(r, 52))
+	if strings.Contains(txt, "https://x/i.png") {
+		t.Fatal("bare card (no description/glance/data) must not render the thumbnail")
+	}
+	if !strings.Contains(txt, "### Nightly backup completed") {
+		t.Fatal("title should render as a heading")
+	}
+}
+
+func TestRenderKeepsIconWhenFilled(t *testing.T) {
+	r := card.Rendered{Title: "GPU hot", Severity: "Warning", Icon: "https://x/i.png",
+		Glance: []card.GlanceItem{{Value: "temp = 88", Code: true}}}
+	txt := renderText(RenderCreate(r, 52))
+	if !strings.Contains(txt, "`temp = 88`") {
+		t.Fatal("code glance item must render in inline code")
+	}
+}
+
+func TestRenderButtonsAndLinks(t *testing.T) {
+	r := card.Rendered{Title: "t", Severity: "Critical", Description: "d",
+		Links: []card.Link{{Label: "Open", URL: "https://g/1"}}}
+	txt := renderText(RenderCreate(r, 52))
+	if !strings.Contains(txt, "**Critical**") {
+		t.Fatal("severity should lead the glance")
+	}
+}
+
+func TestRenderFooterIsOneLine(t *testing.T) {
+	r := card.Rendered{Title: "t", Severity: "Info", Description: "d",
+		Footer: []string{"titan", "grafana", "20:14"}}
+	txt := renderText(RenderCreate(r, 52))
+	if strings.Count(txt, "-# ") != 1 {
+		t.Fatalf("footer should be one muted line, got %d", strings.Count(txt, "-# "))
+	}
+	if !strings.Contains(txt, "titan · grafana · 20:14") {
+		t.Fatal("footer entries should join with ' · '")
 	}
 }
