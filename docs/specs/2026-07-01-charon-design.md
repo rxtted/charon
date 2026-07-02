@@ -120,13 +120,15 @@ var ErrNotMatched = errors.New("adapter did not match")
 type Adapter interface {
     Name() string
     Path() string // the HTTP path this adapter owns, e.g. "/ingest"
-    // Match parses a request already routed to this adapter's path into an Event,
-    // or returns ErrNotMatched if the body is malformed for this adapter.
-    Match(r *http.Request) (Event, error)
+    // Match parses a request already routed to this adapter's path into one or
+    // more Events, or ErrNotMatched if the body is malformed for this adapter.
+    Match(r *http.Request) ([]Event, error)
 }
 ```
 
-adapters self-register into a package-level registry at init, each declaring the path it owns. routing is by path, not by sniffing the body in registration order: the native adapter owns `POST /ingest`, and a future third-party adapter (the jellyfin plugin, say) owns its own path like `POST /webhook/jellyfin`. a request reaches exactly one adapter, deterministically, so a second adapter can never shadow or mis-claim a controlled emitter's payload. within its path the adapter parses the body and returns the `Event`, or `ErrNotMatched` if the body is malformed for it, which is a 4xx and a log line, not a silent drop: a controlled emitter posting a shape its own adapter cannot parse is a bug worth surfacing.
+`Match` returns a slice because one POST can carry a batch: grafana groups alerts and can deliver several in a single webhook call, so the native adapter expands them into one `Event` per alert and the core handles each. dropping the extras would be a silently lost alert, so the batch is handled explicitly.
+
+adapters self-register into a package-level registry at init, each declaring the path it owns. routing is by path, not by sniffing the body in registration order: the native adapter owns `POST /ingest`, and a future third-party adapter (the jellyfin plugin, say) owns its own path like `POST /webhook/jellyfin`. a request reaches exactly one adapter, deterministically, so a second adapter can never shadow or mis-claim a controlled emitter's payload. within its path the adapter parses the body and returns the `Event`s, or `ErrNotMatched` if the body is malformed for it, which is a 4xx and a log line, not a silent drop: a controlled emitter posting a shape its own adapter cannot parse is a bug worth surfacing.
 
 ingest caps the request body size before reading, so a malformed or oversized post cannot exhaust memory. an optional static bearer token, when configured, is required on every request and checked before routing; unconfigured, the endpoint trusts the internal vlan the way apprise did. per-emitter signing is a deliberate non-goal.
 
@@ -156,11 +158,13 @@ the reaper only touches incidents with a firing heartbeat. one-shot events (sab,
 
 several things mutate an incident: an ingest firing or resolve, a button click, the snooze timer, the re-notification sweep, the reaper. left unsynchronised they race, a repeat-firing edit landing after a resolve delete (resurrecting a ghost), an old repost overwriting a newer message id, two sends for the same incident interleaving. two rules keep it correct.
 
-first, mutations of a single incident are serialized. all writes for a given `DedupKey` run through one owner (a per-key worker, or a transaction guarded by a status-and-version precondition), so a transition always reads the current state and a stale writer loses. SQLite is a single writer under WAL, which charon leans into rather than fights: the incident row's `version` is the concurrency token, and a notifier job carrying an old version is dropped.
+first, mutations of a single incident are serialized through **one shared coordinator**. a single per-`DedupKey` lock is constructed once and held by every mutator: the ingest core, the re-notify sweep, the reaper, and the converger. this is the part that has to be right: if each held its own lock the serialization would be a fiction, so the coordinator is injected, not created per component. under the key lock a transition reads the current row and writes it back with a `version` precondition; the version is a backstop for the one writer that can still bump a row outside a held lock (the boot re-check), and any writer that loses on it refetches and retries rather than surfacing an error. SQLite is a single writer under WAL, which charon leans into rather than fights.
 
-second, discord is driven by convergence, not by fire-and-forget calls. charon records the *desired* discord state for each incident in SQLite (a message present with a given rendered content hash, or absent), separate from the last confirmed state. a converger reconciles the two: it posts, edits, or deletes to make discord match the desired state, idempotently, and records the outcome. this is why a crash between "delete the discord message" and "stamp resolved" is recoverable: the desired state is already absent, so on boot the converger retries the delete and reaches the same end. it is also what bounds the outage backlog, the converger only ever needs to reach the latest desired state per incident, so superseded work collapses instead of piling up.
+second, discord is driven by convergence, not by fire-and-forget calls. charon records the *desired* discord state for each incident in SQLite (a message present with a given rendered content hash, or absent), separate from the last confirmed state. the converger reconciles the two under the same per-key lock, so its discord call and the row write that records the result are atomic against any other mutator: it posts, edits, or deletes to make discord match the desired state, then persists the outcome, and nothing can slip a change in between and orphan a message it just posted. a crash between the discord side effect and the row write is still recoverable, because the desired state was written first: on boot the converger retries toward it and reaches the same end. this is also what bounds the outage backlog, the converger only ever needs to reach the latest desired state per incident, so superseded work collapses instead of piling up.
 
-restart reconciliation is the converger running at boot against the persisted desired state, plus the reaper's unconfirmed-until-reasserted marking: a message that is gone is reposted, a pending delete is retried, a still-firing incident is confirmed by the next grafana heartbeat, a resolved-while-down one is reaped.
+a re-notification (the paced repost) is expressed the same durable way: the sweep moves the current `message_id` to a `stale_message_id` column and clears it, all under the key lock, and the converger then deletes the stale message and posts a fresh one as part of reconciling. because the stale id is persisted, a delete that fails is retried on the next pass or after a restart, so a repost never leaves an orphaned old card on the board.
+
+restart reconciliation is the converger running at boot against the persisted desired state, plus the reaper's unconfirmed-until-reasserted marking: a message that is gone is reposted, a stale or pending delete is retried, a still-firing incident is confirmed by the next grafana heartbeat, a resolved-while-down one is reaped.
 
 ## rendering
 
@@ -192,7 +196,7 @@ the core table is `incidents`:
 
 - `dedup_key` (unique among active rows), `channel`, `severity`, `status` (`active` | `resolved`), `version` (the concurrency token)
 - `title`, `body`, `host`, `link`, `labels` (json)
-- `desired_present` and `content_hash` (the desired discord state the converger drives toward), plus `message_id` and `channel_id` (the last confirmed discord ids)
+- `desired_present` and `content_hash` (the desired discord state the converger drives toward), plus `message_id`, `stale_message_id` (an old card a repost still needs to delete), and `channel_id` (the confirmed discord ids)
 - `created_at`, `last_seen_firing`, `acked_at`, `acked_by`, `snoozed_until`, `last_notified_at`, `resolved_at`
 
 active-incident lookup is by `dedup_key` where `status = active`. the snooze, re-notification, and reaper sweeps index `snoozed_until`, `last_notified_at`, and `last_seen_firing`. the converger reads rows whose confirmed discord state differs from the desired one. `busy_timeout` is set so a sweep and an interaction that contend wait rather than error, and every mutation is a transaction with a `version` precondition. closed incidents keep their rows for MTTR and for answering "did it resolve, or did charon die", which a deleted board message alone cannot answer.
@@ -203,7 +207,7 @@ the write load is a handful of rows per alert event, negligible against the prom
 
 - a static arm64 binary from a multi-stage build (go 1.24 builder, distroless or scratch final), cgo disabled.
 - runs in triton's `monitoring` compose stack, in the slot apprise held. apprise, its config, and its vhost are removed (see replacing apprise).
-- the ingest port is published to `192.168.20.10` (vlan) and `127.0.0.1` (loopback), matching apprise's reach, so grafana, the titan scripts, and unbound can all post.
+- the ingest process listens on `0.0.0.0:8000` inside the container, and the compose `ports:` publishes it only to `192.168.20.10` (vlan) and `127.0.0.1` (loopback), matching apprise's reach, so grafana, the titan scripts, and unbound can all post while the host exposure stays restricted (the same publish-restricts pattern prometheus and grafana already use). a listener that cannot bind is a fatal startup error, not a silent skip.
 - an outbound gateway websocket to discord (disgo auto-reconnects and resumes).
 - the SQLite file on a `./data` bind mount under the stack directory.
 - a `/metrics` endpoint scraped by prometheus, so a dead charon is itself an alert (subject to the triton-down gap: if triton is down, charon and prometheus are both down, the accepted SPOF).
@@ -299,9 +303,9 @@ this is a dormant touchpoint, not a built feature. nothing in v1 reads `GroupKey
 **durable knowledge introduced**:
 
 - charon's model and ownership: ingest turns requests into events via adapters, the core owns incident state, the store owns persistence, the discord side owns rendering and interactions.
-- the `Event` contract and the `Adapter` interface as the two boundaries the core depends on, with deterministic path-based adapter routing (each adapter owns a path, no body-sniffing first-match).
+- the `Event` contract and the `Adapter` interface as the two boundaries the core depends on, with deterministic path-based adapter routing (each adapter owns a path, no body-sniffing first-match) and `Match` returning a slice so a batched webhook (grafana) expands to one incident per alert rather than dropping the extras.
 - the invariants: one active incident per `DedupKey`; the channel shows only active incidents (delete on resolve, not edit-to-resolved); charon owns re-notification, not grafana, and never re-notifies on a grafana repeat.
-- the concurrency and convergence model: mutations of an incident are serialized per `DedupKey` under a `version` precondition, and discord is driven by a converger toward a persisted desired state, which is what makes a mid-resolve crash and an outage backlog recoverable and bounded.
+- the concurrency and convergence model: mutations of an incident are serialized through one shared per-`DedupKey` coordinator held by the core, both sweeps, and the converger (a `version` precondition backstops it, with refetch-and-retry on a loss). the converger reconciles under that lock so its discord call and the row write are atomic, and a repost is durable through a persisted `stale_message_id`. this is what makes a mid-resolve crash and an outage backlog recoverable and bounded, and what stops a repost orphaning the old card.
 - the staleness reaper and the grafana-firing-as-heartbeat contract: a heartbeat-backed incident that stops re-firing is auto-closed after a grace window derived from grafana's `repeat_interval`; one-shot events have no heartbeat and are never reaped.
 - the ingest trust boundary: the vlan is trusted (apprise parity), with a body-size cap and an optional static bearer token, and per-emitter signing a deliberate non-goal.
 - re-notification is a paced, jittered, coalesced repost that pauses while degraded, so it cannot storm a channel or trip the 429 ban.
