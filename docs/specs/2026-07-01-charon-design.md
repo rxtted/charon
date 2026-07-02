@@ -194,12 +194,12 @@ SQLite through the pure-go `modernc.org/sqlite` driver, so the build is cgo-free
 
 the core table is `incidents`:
 
-- `dedup_key` (unique among active rows), `channel`, `severity`, `status` (`active` | `resolved`), `version` (the concurrency token)
+- `id` (autoincrement primary key), `dedup_key`, `channel`, `severity`, `status` (`active` | `resolved`), `version` (the concurrency token)
 - `title`, `body`, `host`, `link`, `labels` (json)
 - `desired_present` and `content_hash` (the desired discord state the converger drives toward), plus `message_id`, `stale_message_id` (an old card a repost still needs to delete), and `channel_id` (the confirmed discord ids)
 - `created_at`, `last_seen_firing`, `acked_at`, `acked_by`, `snoozed_until`, `last_notified_at`, `resolved_at`
 
-active-incident lookup is by `dedup_key` where `status = active`. the snooze, re-notification, and reaper sweeps index `snoozed_until`, `last_notified_at`, and `last_seen_firing`. the converger reads rows whose confirmed discord state differs from the desired one. `busy_timeout` is set so a sweep and an interaction that contend wait rather than error, and every mutation is a transaction with a `version` precondition. closed incidents keep their rows for MTTR and for answering "did it resolve, or did charon die", which a deleted board message alone cannot answer.
+`id` is the primary key, not `dedup_key`. one `DedupKey` accumulates rows over time (one active plus its retained closed occurrences), so the "one active per condition" invariant is a **partial unique index on `dedup_key` where `status = 'active'`**, not a primary key. this is what lets a condition fire, resolve (the closed row stays for history), and fire again: the new firing inserts a fresh row that the partial index permits, instead of colliding on a retained key. active-incident lookup is `dedup_key` where `status = active`; every write targets a row by `id` under its `version` precondition; the converger reconciles a specific row by `id`. the snooze, re-notification, and reaper sweeps index `snoozed_until`, `last_notified_at`, and `last_seen_firing`. `busy_timeout` lets a contending sweep and interaction wait rather than error. closed incidents keep their rows for MTTR and for answering "did it resolve, or did charon die", which a deleted board message alone cannot answer.
 
 the write load is a handful of rows per alert event, negligible against the prometheus tsdb already on the same sd card. it does not move the sd-wear compromise the alerting spec documents.
 
