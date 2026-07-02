@@ -1,6 +1,6 @@
 # charon
 
-a small self-hosted discord bot that turns monitoring alerts into a live incident board. one card per incident, tracks firing to resolved, ack/snooze/resolve from buttons, and the card disappears when the alert clears so the channel only shows what's currently on fire.
+a small self-hosted discord bot that turns monitoring alerts into clean, custom discord messages, formatted and routed however you want. it holds state, so it'll also dedup a noisy rule, edit a message in place and take a button click, but the real point is control over how alerts look and behave, all on your own infra.
 
 i wrote this after trying a few of the off-the-shelf routers and every one missed something i wanted. apprise, the grafana-native discord push and the various bridges can't render a real embed (thumbnail, footer), let alone do buttons. Novu does the lot but it's a six-container platform i'd be babysitting. Notifiarr's embeds are great but its bot runs on their cloud, not mine. and the stateless ones just forward the same grafana rule every time it re-fires with no idea when it cleared, so the channel fills with duplicates.
 
