@@ -1,9 +1,11 @@
+# map each alert tag to a discord channel id. many tags can share a channel;
+# an unknown tag routes to fallback. channel ids are discord snowflakes.
 channels:
-  infra: "123456789"
-  network: "123456789"
-  media: "234567890"
-  downloads: "234567890"
-fallback: "123456789"
-renotify_every: 4h
-reaper_grace: 20m
+  infra: "000000000000000001"
+  network: "000000000000000001"
+  apps: "000000000000000002"
+fallback: "000000000000000001"
+
+renotify_every: 4h       # re-ping an unacked, unsnoozed incident this often
+reaper_grace: 20m        # auto-close a heartbeat-backed incident that stops re-firing
 snooze_options: [15m, 1h, 4h]

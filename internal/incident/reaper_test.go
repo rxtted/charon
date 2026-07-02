@@ -28,13 +28,13 @@ func TestReaperClosesStaleHeartbeat(t *testing.T) {
 
 func TestReaperSkipsOneShots(t *testing.T) {
 	c, s, _ := newCore(t)
-	c.Handle(context.Background(), fire("downloads", "sab1")) // one firing: no heartbeat
-	in, _ := s.ActiveByKey("sab1")
+	c.Handle(context.Background(), fire("apps", "oneshot1")) // one firing: no heartbeat
+	in, _ := s.ActiveByKey("oneshot1")
 	in.LastSeenFiring = time.Now().Add(-1 * time.Hour)
 	s.Update(in)
 	r := NewReaper(s, config.Config{ReaperGrace: 20 * time.Minute}, lock.New(), &fakeWaker{})
 	r.Sweep(time.Now())
-	if got, _ := s.ActiveByKey("sab1"); got == nil {
+	if got, _ := s.ActiveByKey("oneshot1"); got == nil {
 		t.Fatal("one-shot must never be reaped")
 	}
 }

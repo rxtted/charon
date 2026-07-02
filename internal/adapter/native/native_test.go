@@ -23,7 +23,7 @@ func TestNativeParsesSingleEvent(t *testing.T) {
 }
 
 func TestNativeParsesBatch(t *testing.T) {
-	body := `[{"status":"firing","channel":"infra","title":"a"},{"status":"firing","channel":"media","title":"b"}]`
+	body := `[{"status":"firing","channel":"infra","title":"a"},{"status":"firing","channel":"apps","title":"b"}]`
 	r := httptest.NewRequest("POST", "/ingest", strings.NewReader(body))
 	evs, err := New().Match(r)
 	if err != nil || len(evs) != 2 {

@@ -1,0 +1,23 @@
+services:
+  charon:
+    image: ghcr.io/rxtted/charon:latest
+    container_name: charon
+    restart: unless-stopped
+    env_file:
+      - .env                # CHARON_DISCORD_TOKEN, optional CHARON_INGEST_TOKEN
+    environment:
+      CHARON_CONFIG: /config/config.yml
+      CHARON_DB_PATH: /data/charon.db
+      CHARON_LISTEN_ADDR: ":8000"
+      CHARON_METRICS_ADDR: ":9095"
+    volumes:
+      - ./charon-config:/config:ro   # put config.yml here
+      - ./charon-data:/data          # sqlite; must be writable by uid 65532 (distroless nonroot)
+    ports:
+      - "8000:8000"   # ingest; put this behind a trusted network or the ingest token
+      - "9095:9095"   # prometheus metrics
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

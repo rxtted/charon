@@ -29,7 +29,7 @@ charon needs a discord bot token and a tag-to-channel map. fill in the examples:
     cp .env.example .env          # bot token, optional ingest token
     cp config.example.yml config.yml   # which alert tag posts to which channel
 
-point `CHARON_CONFIG` at the config file and run the binary, or use the compose service in `deploy/`. it takes alert posts on `:8000` and serves prometheus metrics on `:9095`; restrict the ingest port to a trusted network at deploy time.
+point `CHARON_CONFIG` at the config file and run the binary, or run the compose file (`docker compose -f deploy/compose.yaml up`). it takes alert posts on `:8000` and serves prometheus metrics on `:9095`; restrict the ingest port to a trusted network, or set `CHARON_INGEST_TOKEN`, at deploy time.
 
 ## develop
 

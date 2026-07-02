@@ -1,0 +1,8 @@
+.git
+.github
+deploy
+charon-config
+charon-data
+.env
+*.md
+LICENSE

@@ -1,8 +1,8 @@
 channels:
   infra: "111"
   network: "111"
-  media: "222"
-  downloads: "222"
+  apps: "222"
+  db: "222"
 fallback: "111"
 renotify_every: 4h
 reaper_grace: 20m

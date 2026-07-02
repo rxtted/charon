@@ -3,7 +3,7 @@ package event
 import "testing"
 
 func TestNormalizeDefaults(t *testing.T) {
-	e := Event{Source: "sabnzbd", Channel: "downloads", Title: "download failed"}
+	e := Event{Source: "prometheus", Channel: "alerts", Title: "disk usage high"}
 	e.Normalize()
 	if e.Severity != Warning {
 		t.Fatalf("severity = %q, want warning", e.Severity)
@@ -17,11 +17,11 @@ func TestNormalizeDefaults(t *testing.T) {
 }
 
 func TestDeriveKeyStableAndDistinct(t *testing.T) {
-	a := DeriveKey("sabnzbd", "downloads", "download failed")
-	if a != DeriveKey("sabnzbd", "downloads", "download failed") {
+	a := DeriveKey("prometheus", "alerts", "disk usage high")
+	if a != DeriveKey("prometheus", "alerts", "disk usage high") {
 		t.Fatal("derive is not stable across calls")
 	}
-	if a == DeriveKey("sabnzbd", "downloads", "other title") {
+	if a == DeriveKey("prometheus", "alerts", "other title") {
 		t.Fatal("different titles derived the same key")
 	}
 }
