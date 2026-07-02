@@ -119,6 +119,13 @@ func (s *Store) ActiveByKey(key string) (*Incident, error) {
 	return s.scanOne(`select `+cols+` from incidents where dedup_key=? and status='active'`, key)
 }
 
+// CountActive is a gauge source: the sweep loop samples it into a metric.
+func (s *Store) CountActive() (int, error) {
+	var n int
+	err := s.db.QueryRow(`select count(*) from incidents where status='active'`).Scan(&n)
+	return n, err
+}
+
 // DueForReap returns active, heartbeat-backed incidents last seen firing before cutoff.
 func (s *Store) DueForReap(cutoff time.Time) ([]*Incident, error) {
 	return s.scanMany(`select `+cols+` from incidents
