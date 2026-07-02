@@ -6,7 +6,7 @@ it exists to replace a stateless webhook fan-out. a webhook is send-only, so it 
 
 ## how it works
 
-- **ingest**: an http endpoint turns alert events into one internal `Event` type through a small self-registering adapter set. grafana's contact point and the shell emitters post the event json directly; a rigid third-party webhook gets its own adapter.
+- **ingest**: an http endpoint turns alert events into one internal `Event` type through a small self-registering adapter set. anything that can shape its own json (grafana's webhook contact point, a script) posts to the native adapter directly; a rigid third-party format gets its own adapter.
 - **core**: an incident state machine on sqlite. one active incident per dedup key, mutations of a key serialized through a shared lock, closed incidents kept for history.
 - **discord**: each incident renders as a components v2 message with a severity accent and ack/snooze/resolve buttons. a converger drives discord toward a desired state persisted in sqlite, so a restart or a discord outage reconciles instead of drifting. button clicks arrive over the gateway; no inbound url is needed.
 

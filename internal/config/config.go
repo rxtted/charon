@@ -10,9 +10,9 @@ import (
 
 type Config struct {
 	DiscordToken  string
-	ListenAddr    string // ingest listener inside the container, e.g. ":8000"; compose restricts host exposure
+	ListenAddr    string // address the ingest server listens on, e.g. ":8000"
 	MetricsAddr   string
-	IngestToken   string // empty = trust the vlan
+	IngestToken   string // empty = ingest is unauthenticated
 	MaxBodyBytes  int64
 	DBPath        string
 	Channels      map[string]string

@@ -14,10 +14,5 @@ services:
       - ./charon-config:/config:ro   # put config.yml here
       - ./charon-data:/data          # sqlite; must be writable by uid 65532 (distroless nonroot)
     ports:
-      - "8000:8000"   # ingest; put this behind a trusted network or the ingest token
+      - "8000:8000"   # ingest; put this behind a trusted network or set CHARON_INGEST_TOKEN
       - "9095:9095"   # prometheus metrics
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
