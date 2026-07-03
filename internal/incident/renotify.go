@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rxtted/charon/internal/config"
+	"github.com/rxtted/charon/internal/event"
 	"github.com/rxtted/charon/internal/lock"
 	"github.com/rxtted/charon/internal/store"
 )
@@ -24,7 +25,8 @@ func NewRenotifier(s *store.Store, cfg config.Config, coord *lock.Keyed, w Waker
 // acked, has no live message, or is still snoozed. evaluated under the key lock
 // so a concurrent ack/snooze is respected even when the batch select predated it.
 func repostBlocked(in *store.Incident, now time.Time) bool {
-	return in.AckedAt != nil || in.MessageID == "" ||
+	return !event.Kind(in.Kind).Behavior().Renotifies ||
+		in.AckedAt != nil || in.MessageID == "" ||
 		(in.SnoozedUntil != nil && in.SnoozedUntil.After(now))
 }
 

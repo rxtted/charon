@@ -11,6 +11,18 @@ import (
 	"github.com/rxtted/charon/internal/store"
 )
 
+func TestRepostBlockedForNotify(t *testing.T) {
+	now := time.Now()
+	notify := &store.Incident{Kind: "notify", MessageID: "m"}
+	if !repostBlocked(notify, now) {
+		t.Fatal("a notify must never be re-notified")
+	}
+	alert := &store.Incident{Kind: "alert", MessageID: "m"}
+	if repostBlocked(alert, now) {
+		t.Fatal("a live unacked alert should be eligible for re-notify")
+	}
+}
+
 func TestSweepStagesRepost(t *testing.T) {
 	c, s, _ := newCore(t)
 	c.Handle(context.Background(), fire("infra", "k"))
