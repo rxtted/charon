@@ -86,12 +86,12 @@ func dispatch(a Actions, action, key, user string, dur time.Duration) error {
 func (b *Bot) snoozePrompt(_ dgo.ButtonInteractionData, e *handler.ComponentEvent) error {
 	opts := make([]dgo.StringSelectMenuOption, 0, len(b.cfg.SnoozeOptions))
 	for _, d := range b.cfg.SnoozeOptions {
-		opts = append(opts, dgo.NewStringSelectMenuOption(d.String(), d.String()))
+		opts = append(opts, dgo.NewStringSelectMenuOption(humanizeDur(d), d.String()))
 	}
-	menu := dgo.NewStringSelectMenu("/snooze-pick/"+e.Vars["key"], "how long?", opts...)
+	menu := dgo.NewStringSelectMenu("/snooze-pick/"+e.Vars["key"], "How long?", opts...)
 	return e.CreateMessage(dgo.NewMessageCreate().
 		WithFlags(dgo.MessageFlagEphemeral).
-		WithContent("snooze this alert:").
+		WithContent("Snooze this alert").
 		AddActionRow(menu))
 }
 
@@ -107,10 +107,32 @@ func (b *Bot) snoozePick(data dgo.SelectMenuInteractionData, e *handler.Componen
 	if err != nil {
 		return err
 	}
-	return dispatch(b.actions, "snooze", e.Vars["key"], e.User().Username, d)
+	if err := dispatch(b.actions, "snooze", e.Vars["key"], e.User().Username, d); err != nil {
+		return err
+	}
+	// collapse the ephemeral picker into a confirmation so the dropdown doesn't linger.
+	_, err = e.UpdateInteractionResponse(dgo.NewMessageUpdate().
+		WithContent("Snoozed for " + humanizeDur(d)).
+		WithComponents())
+	return err
 }
 
 func parseSnoozeValue(v string) (time.Duration, error) { return time.ParseDuration(v) }
+
+// humanizeDur renders a snooze option as "15m" / "1h" / "1h 30m" rather than go's
+// raw "15m0s".
+func humanizeDur(d time.Duration) string {
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	switch {
+	case h > 0 && m > 0:
+		return fmt.Sprintf("%dh %dm", h, m)
+	case h > 0:
+		return fmt.Sprintf("%dh", h)
+	default:
+		return fmt.Sprintf("%dm", m)
+	}
+}
 
 // Sender wraps disgo REST into the queue's sender interface.
 func (b *Bot) Sender() sender { return restSender{b.client} }
