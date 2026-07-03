@@ -198,7 +198,7 @@ func parseHex(s string) int {
 func Short(d time.Duration) string {
 	switch {
 	case d < time.Minute:
-		return "just now"
+		return "<1m"
 	case d < time.Hour:
 		return strconv.Itoa(int(d.Minutes())) + "m"
 	default:
