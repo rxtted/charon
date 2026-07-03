@@ -76,6 +76,16 @@ func (a Adapter) mapEvent(p payload) (event.Event, bool) {
 			return event.Event{}, false // lidarr/prowlarr import success: nothing to resolve
 		}
 		return a.downloadResolve(p), true
+	case "DownloadFailure":
+		if !a.app.isLidarr {
+			return event.Event{}, false
+		}
+		return a.lidarrDownloadFailure(p), true
+	case "ImportFailure":
+		if !a.app.isLidarr {
+			return event.Event{}, false
+		}
+		return a.lidarrImportFailure(p), true
 	default:
 		return event.Event{}, false
 	}
@@ -153,6 +163,46 @@ func (a Adapter) downloadResolve(p payload) event.Event {
 		Channel:  "media",
 		Status:   event.Resolved,
 		DedupKey: a.app.source + ":manual:" + p.DownloadID,
+	}
+}
+
+func (a Adapter) lidarrDownloadFailure(p payload) event.Event {
+	labels := map[string]string{}
+	putIf(labels, "release", p.ReleaseTitle)
+	putIf(labels, "quality", p.Quality)
+	putIf(labels, "client", p.DownloadClient)
+	return event.Event{
+		Source:   a.app.source,
+		Kind:     event.Alert,
+		Channel:  "media",
+		Status:   event.Firing,
+		DedupKey: a.app.source + ":import:" + p.DownloadID,
+		Severity: event.Warning,
+		Title:    "Download failed: " + p.ReleaseTitle,
+		Labels:   labels,
+	}
+}
+
+func (a Adapter) lidarrImportFailure(p payload) event.Event {
+	artist := ""
+	if p.Artist != nil {
+		artist = p.Artist.Name
+	}
+	labels := map[string]string{}
+	putIf(labels, "artist", artist)
+	if len(p.TrackFiles) > 0 {
+		putIf(labels, "quality", p.TrackFiles[0].Quality)
+	}
+	putIf(labels, "client", p.DownloadClient)
+	return event.Event{
+		Source:   a.app.source,
+		Kind:     event.Alert,
+		Channel:  "media",
+		Status:   event.Firing,
+		DedupKey: a.app.source + ":import:" + p.DownloadID,
+		Severity: event.Warning,
+		Title:    "Import failed: " + artist,
+		Labels:   labels,
 	}
 }
 

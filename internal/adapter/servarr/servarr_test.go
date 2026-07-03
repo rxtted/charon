@@ -132,3 +132,43 @@ func TestManualDroppedOnProwlarr(t *testing.T) {
 		t.Fatalf("prowlarr has no manual-interaction, want drop, got %+v", evs)
 	}
 }
+
+const dlFailBody = `{"eventType":"DownloadFailure","instanceName":"Lidarr","applicationUrl":"https://lidarr.example.com","quality":"FLAC","qualityVersion":1,"releaseTitle":"Radiohead - In Rainbows (2007) [FLAC-16bit]","downloadClient":"qBittorrent","downloadId":"LID1234"}`
+
+const importFailBody = `{"eventType":"ImportFailure","instanceName":"Lidarr","artist":{"name":"Radiohead","mbId":"a74b"},"trackFiles":[{"quality":"FLAC","size":41231234}],"isUpgrade":false,"downloadClient":"qBittorrent","downloadId":"LID1234"}`
+
+func TestLidarrDownloadFailure(t *testing.T) {
+	e := match(t, "/lidarr", dlFailBody)[0]
+	if e.Source != "lidarr" || e.Channel != "media" || e.Status != event.Firing || e.Kind != event.Alert {
+		t.Fatalf("bad routing: %+v", e)
+	}
+	if e.DedupKey != "lidarr:import:LID1234" || e.Severity != event.Warning {
+		t.Fatalf("dedup/sev: %+v", e)
+	}
+	if e.Title != "Download failed: Radiohead - In Rainbows (2007) [FLAC-16bit]" {
+		t.Fatalf("title = %q", e.Title)
+	}
+	if e.Labels["quality"] != "FLAC" || e.Labels["release"] == "" {
+		t.Fatalf("labels = %v", e.Labels)
+	}
+}
+
+func TestLidarrImportFailure(t *testing.T) {
+	e := match(t, "/lidarr", importFailBody)[0]
+	if e.DedupKey != "lidarr:import:LID1234" {
+		t.Fatalf("dedup = %q", e.DedupKey)
+	}
+	if e.Title != "Import failed: Radiohead" {
+		t.Fatalf("title = %q", e.Title)
+	}
+	if e.Labels["artist"] != "Radiohead" || e.Labels["quality"] != "FLAC" {
+		t.Fatalf("labels = %v", e.Labels)
+	}
+}
+
+func TestLidarrDownloadDropped(t *testing.T) {
+	// a lidarr import success (eventType Download) has no manual to resolve: drop.
+	if evs := match(t, "/lidarr", `{"eventType":"Download","instanceName":"Lidarr","downloadId":"X"}`); evs != nil {
+		t.Fatalf("lidarr Download should drop, got %+v", evs)
+	}
+}
