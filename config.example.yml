@@ -33,3 +33,9 @@ senders:
       - { label: "Job", value: "{labels.job}" }
       - { label: "Size", value: "{labels.size}" }
     footer: ["{source}", "{time}"]
+  # a source whose events set kind: notify renders a card with only an Acknowledge
+  # button; acking dismisses it. styling works the same as any other source.
+  events:
+    glance:
+      - { value: "{labels.detail}" }
+    footer: ["{source}", "{time}"]
