@@ -5,7 +5,24 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/rxtted/charon/internal/adapter"
 )
+
+// TestAdaptersRegistered guards the blank imports in main.go: the ingest tests
+// use native.New() directly and never load them, so only a package-main test
+// catches a missing one.
+func TestAdaptersRegistered(t *testing.T) {
+	paths := map[string]bool{}
+	for _, a := range adapter.Registered() {
+		paths[a.Path()] = true
+	}
+	for _, want := range []string{"/ingest", "/radarr", "/sonarr", "/lidarr", "/prowlarr", "/truenas", "/jellyfin"} {
+		if !paths[want] {
+			t.Fatalf("adapter path %q not registered; check the blank import in main.go", want)
+		}
+	}
+}
 
 // sweepLoop is one of the two
 // goroutines run()'s wg.Wait() joins on shutdown. it must return as soon as ctx
