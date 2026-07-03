@@ -15,6 +15,7 @@ import (
 	"github.com/rxtted/charon/internal/adapter"
 	_ "github.com/rxtted/charon/internal/adapter/native"  // self-register
 	_ "github.com/rxtted/charon/internal/adapter/servarr" // self-register
+	_ "github.com/rxtted/charon/internal/adapter/truenas" // self-register
 	"github.com/rxtted/charon/internal/config"
 	"github.com/rxtted/charon/internal/discord"
 	"github.com/rxtted/charon/internal/event"
