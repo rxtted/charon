@@ -64,19 +64,10 @@ func run() error {
 		return err
 	}
 
-	// boot orphan sweep: a crash between posting a card and writing its
-	// message_id can leave a bot-authored card with no matching incident. this is
-	// best-effort and never fails startup.
-	if keep, err := st.ActiveMessageIDs(); err != nil {
-		slog.Error("boot orphan sweep: load active message ids failed", "err", err)
-	} else if err := b.SweepOrphans(ctx, cfg.AllChannelIDs(), keep); err != nil {
-		slog.Error("boot orphan sweep failed", "err", err)
-	}
-
-	// wg tracks the converger and sweep-loop goroutines so shutdown can wait for
-	// them to exit before the store and bot are closed out from under them.
+	// wg tracks the converger, the sweep loop, and the boot orphan sweep so shutdown
+	// waits for them to exit before the store and bot are closed out from under them.
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	go func() { defer wg.Done(); conv.Run(ctx) }()
 	go func() {
 		defer wg.Done()
@@ -91,6 +82,20 @@ func run() error {
 			}
 			_ = reap.Sweep(now) // the reaper only touches the store; safe while degraded
 		})
+	}()
+	// boot orphan sweep, off the startup path so it can't gate the ingest listener:
+	// a crash between posting a card and writing its message_id can orphan a
+	// bot-authored card. best-effort, never fails startup.
+	go func() {
+		defer wg.Done()
+		keep, err := st.ActiveMessageIDs()
+		if err != nil {
+			slog.Error("boot orphan sweep: load active message ids failed", "err", err)
+			return
+		}
+		if err := b.SweepOrphans(ctx, cfg.AllChannelIDs(), keep); err != nil {
+			slog.Error("boot orphan sweep failed", "err", err)
+		}
 	}()
 
 	sink := func(ctx context.Context, ev event.Event) error {
