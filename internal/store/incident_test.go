@@ -17,6 +17,19 @@ func newStore(t *testing.T) *Store {
 	return s
 }
 
+func TestKindPersists(t *testing.T) {
+	s := newStore(t)
+	in := &Incident{DedupKey: "n1", Channel: "infra", Kind: "notify", Severity: "info",
+		Status: "active", Version: 1, Title: "t", CreatedAt: time.Unix(1, 0)}
+	if err := s.Insert(in); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.ActiveByKey("n1")
+	if got == nil || got.Kind != "notify" {
+		t.Fatalf("kind = %q, want notify", got.Kind)
+	}
+}
+
 func TestInsertActiveByKey(t *testing.T) {
 	s := newStore(t)
 	in := &Incident{DedupKey: "k1", Channel: "infra", Severity: "warning", Status: "active", Version: 1, Title: "t", CreatedAt: time.Now()}

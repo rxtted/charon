@@ -18,6 +18,7 @@ create table if not exists incidents (
     channel          text not null,
     channel_id       text not null default '',
     source           text not null default '',
+    kind             text not null default 'alert',
     severity         text not null,
     status           text not null,          -- active | resolved
     version          integer not null default 1,
@@ -65,6 +66,17 @@ func Open(path string) (*Store, error) {
 		if _, err := db.Exec(`alter table incidents add column source text not null default ''`); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("add source column: %w", err)
+		}
+	}
+	hasKind, err := hasColumn(db, "kind")
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("check kind column: %w", err)
+	}
+	if !hasKind {
+		if _, err := db.Exec(`alter table incidents add column kind text not null default 'alert'`); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("add kind column: %w", err)
 		}
 	}
 	return &Store{db: db}, nil
