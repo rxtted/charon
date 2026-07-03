@@ -6,6 +6,7 @@ import (
 
 	dgo "github.com/disgoorg/disgo/discord"
 	"github.com/rxtted/charon/internal/card"
+	"github.com/rxtted/charon/internal/event"
 )
 
 // walk yields every component in mc, recursing into containers/sections/action rows
@@ -157,5 +158,28 @@ func TestRenderFooterIsOneLine(t *testing.T) {
 	}
 	if !strings.Contains(txt, "titan · grafana · 20:14") {
 		t.Fatal("footer entries should join with ' · '")
+	}
+}
+
+func TestRenderNotifyShowsOnlyAcknowledge(t *testing.T) {
+	r := card.Rendered{Title: "backup done", Severity: "Info", Kind: event.Notify, DedupKey: "n1"}
+	ids := customIDs(RenderCreate(r, 52))
+	if !contains(ids, "/ack/n1") {
+		t.Fatalf("notify should have Acknowledge, got %v", ids)
+	}
+	for _, unwanted := range []string{"/snooze/", "/resolve/"} {
+		if contains(ids, unwanted) {
+			t.Fatalf("notify must not show %s, got %v", unwanted, ids)
+		}
+	}
+}
+
+func TestRenderAlertShowsAllThree(t *testing.T) {
+	r := card.Rendered{Title: "host down", Severity: "Critical", Kind: event.Alert, DedupKey: "a1"}
+	ids := customIDs(RenderCreate(r, 52))
+	for _, want := range []string{"/ack/a1", "/snooze/a1", "/resolve/a1"} {
+		if !contains(ids, want) {
+			t.Fatalf("alert missing %s, got %v", want, ids)
+		}
 	}
 }

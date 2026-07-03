@@ -40,6 +40,7 @@ func TestContentHashCoversContentNotPresentation(t *testing.T) {
 		func(r *Rendered) { r.Icon = "https://x/other.png" },
 		func(r *Rendered) { r.Accent = 0x000000 },
 		func(r *Rendered) { r.Wrap = 40 },
+		func(r *Rendered) { r.Kind = "notify" },
 	}
 	for i, m := range presentation {
 		c := baseRendered()

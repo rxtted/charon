@@ -6,6 +6,7 @@ import (
 
 	dgo "github.com/disgoorg/disgo/discord"
 	"github.com/rxtted/charon/internal/card"
+	"github.com/rxtted/charon/internal/event"
 )
 
 const flagV2 = dgo.MessageFlagIsComponentsV2
@@ -122,10 +123,16 @@ func dataLines(items []card.DataItem) []string {
 // the three lifecycle buttons stay one style so the row renders at a single
 // height (discord sizes buttons by style); link buttons match.
 func actionRow(r card.Rendered) dgo.ActionRowComponent {
-	row := []dgo.InteractiveComponent{
-		dgo.NewSecondaryButton("Acknowledge", "/ack/"+r.DedupKey),
-		dgo.NewSecondaryButton("Snooze", "/snooze/"+r.DedupKey),
-		dgo.NewSecondaryButton("Resolve", "/resolve/"+r.DedupKey),
+	var row []dgo.InteractiveComponent
+	for _, a := range r.Kind.Behavior().Actions {
+		switch a {
+		case event.Ack:
+			row = append(row, dgo.NewSecondaryButton("Acknowledge", "/ack/"+r.DedupKey))
+		case event.Snooze:
+			row = append(row, dgo.NewSecondaryButton("Snooze", "/snooze/"+r.DedupKey))
+		case event.Resolve:
+			row = append(row, dgo.NewSecondaryButton("Resolve", "/resolve/"+r.DedupKey))
+		}
 	}
 	for _, l := range r.Links {
 		row = append(row, dgo.NewLinkButton(l.Label, l.URL))

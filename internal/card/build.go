@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rxtted/charon/internal/event"
 	"github.com/rxtted/charon/internal/store"
 )
 
@@ -24,6 +25,7 @@ type Rendered struct {
 	Icon        string
 	Accent      int
 	Wrap        int // per-sender body wrap column; 0 uses the global default
+	Kind        event.Kind
 	DedupKey    string
 	CreatedAt   time.Time
 }
@@ -48,6 +50,7 @@ func Build(in *store.Incident, st Style) Rendered {
 		Icon:      st.Icon,
 		Accent:    accentFor(in, st),
 		Note:      note(in),
+		Kind:      event.Kind(in.Kind),
 		DedupKey:  in.DedupKey,
 		CreatedAt: in.CreatedAt,
 	}
