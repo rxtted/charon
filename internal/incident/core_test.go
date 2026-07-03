@@ -157,3 +157,54 @@ func TestContentHashFields(t *testing.T) {
 		}
 	}
 }
+
+func notifyFire(ch, title string) event.Event {
+	e := event.Event{Kind: event.Notify, Source: "restic", Channel: ch, Status: event.Firing, Title: title}
+	e.Normalize()
+	return e
+}
+
+func TestNewIncidentCarriesKind(t *testing.T) {
+	c, _, _ := newCore(t)
+	in := c.newIncident(notifyFire("infra", "backup done"))
+	if in.Kind != "notify" {
+		t.Fatalf("kind = %q, want notify", in.Kind)
+	}
+}
+
+func TestNotifyAckCloses(t *testing.T) {
+	c, s, _ := newCore(t)
+	ev := notifyFire("infra", "backup done")
+	if err := c.Handle(context.Background(), ev); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Acknowledge(context.Background(), ev.DedupKey, "noah"); err != nil {
+		t.Fatal(err)
+	}
+	in, _ := s.ActiveByKey(ev.DedupKey)
+	if in != nil {
+		t.Fatalf("acking a notify should close it, still active: %+v", in)
+	}
+}
+
+func TestAlertAckMutes(t *testing.T) {
+	c, s, _ := newCore(t)
+	c.Handle(context.Background(), fire("infra", "k"))
+	c.Acknowledge(context.Background(), "k", "noah")
+	in, _ := s.ActiveByKey("k")
+	if in == nil || in.AckedAt == nil {
+		t.Fatalf("acking an alert should mute and keep it: %+v", in)
+	}
+}
+
+func TestTwoNotifiesCreateTwoRows(t *testing.T) {
+	c, s, _ := newCore(t)
+	for i := 0; i < 2; i++ { // same source/title: an alert would collapse, a notify must not
+		if err := c.Handle(context.Background(), notifyFire("infra", "backup done")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n, _ := s.CountActive(); n != 2 {
+		t.Fatalf("two notifies should be two active cards, got %d", n)
+	}
+}

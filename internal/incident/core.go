@@ -60,7 +60,7 @@ func (c *Core) Handle(ctx context.Context, ev event.Event) error {
 func (c *Core) newIncident(ev event.Event) *store.Incident {
 	now := time.Now()
 	in := &store.Incident{
-		DedupKey: ev.DedupKey, Source: ev.Source, Channel: ev.Channel, ChannelID: c.cfg.ChannelFor(ev.Channel),
+		DedupKey: ev.DedupKey, Source: ev.Source, Kind: string(ev.Kind), Channel: ev.Channel, ChannelID: c.cfg.ChannelFor(ev.Channel),
 		Severity: string(ev.Severity), Status: "active", Version: 1,
 		Title: ev.Title, Body: ev.Body, Host: ev.Host, Link: ev.Link, Labels: ev.Labels,
 		DesiredPresent: true, Confirmed: false, CreatedAt: now, LastSeenFiring: now,
@@ -114,10 +114,28 @@ func (c *Core) mutate(ctx context.Context, key string, fn func(*store.Incident))
 }
 
 func (c *Core) Acknowledge(ctx context.Context, key, user string) error {
-	return c.mutate(ctx, key, func(in *store.Incident) {
+	release := c.coord.Lock(key)
+	defer release()
+	in, err := c.store.ActiveByKey(key)
+	if err != nil || in == nil {
+		return err
+	}
+	if event.Kind(in.Kind).Behavior().AckCloses {
+		markResolved(in) // a notify's ack dismisses it: the converger deletes the card
+	} else {
 		now := time.Now()
 		in.AckedAt, in.AckedBy = &now, &user
-	})
+		h := c.contentHash(in)
+		if h != in.ContentHash {
+			in.Confirmed = false
+		}
+		in.ContentHash = h
+	}
+	if err := c.store.Update(in); err != nil {
+		return err
+	}
+	c.wake.Wake()
+	return nil
 }
 
 func (c *Core) Snooze(ctx context.Context, key, user string, d time.Duration) error {
