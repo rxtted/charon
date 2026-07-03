@@ -66,6 +66,16 @@ func (a Adapter) mapEvent(p payload) (event.Event, bool) {
 		return a.health(p, event.Firing), true
 	case "HealthRestored":
 		return a.health(p, event.Resolved), true
+	case "ManualInteractionRequired":
+		if !a.app.hasManual {
+			return event.Event{}, false
+		}
+		return a.manual(p), true
+	case "Download":
+		if !a.app.hasManual {
+			return event.Event{}, false // lidarr/prowlarr import success: nothing to resolve
+		}
+		return a.downloadResolve(p), true
 	default:
 		return event.Event{}, false
 	}
@@ -107,8 +117,90 @@ func healthLink(p payload) string {
 	return p.WikiURL // applicationUrl is absent on HealthRestored and often empty
 }
 
+func (a Adapter) manual(p payload) event.Event {
+	labels := map[string]string{}
+	if p.Release != nil {
+		putIf(labels, "release", p.Release.ReleaseTitle)
+		putIf(labels, "indexer", p.Release.Indexer)
+	}
+	if p.DownloadInfo != nil {
+		putIf(labels, "quality", p.DownloadInfo.Quality)
+		putIf(labels, "size", humanizeBytes(p.DownloadInfo.Size))
+	}
+	putIf(labels, "client", p.DownloadClient)
+	putIf(labels, "status", p.DownloadStatus)
+	return event.Event{
+		Source:   a.app.source,
+		Kind:     event.Alert,
+		Channel:  "media",
+		Status:   event.Firing,
+		DedupKey: a.app.source + ":manual:" + p.DownloadID,
+		Severity: event.Warning,
+		Title:    "Manual interaction required: " + mediaTitle(p),
+		Body:     statusBody(p.DownloadStatusMessages),
+		Link:     appLink(p, "/activity/queue"),
+		Labels:   labels,
+	}
+}
+
+// downloadResolve clears a prior manual-interaction on the same downloadId. it is
+// emitted for every radarr/sonarr import; the core no-ops it when no manual card
+// is active, so a plain successful import stays cardless.
+func (a Adapter) downloadResolve(p payload) event.Event {
+	return event.Event{
+		Source:   a.app.source,
+		Kind:     event.Alert,
+		Channel:  "media",
+		Status:   event.Resolved,
+		DedupKey: a.app.source + ":manual:" + p.DownloadID,
+	}
+}
+
+func mediaTitle(p payload) string {
+	switch {
+	case p.Movie != nil:
+		return p.Movie.Title
+	case p.Series != nil:
+		return p.Series.Title
+	case p.Artist != nil:
+		return p.Artist.Name
+	}
+	return ""
+}
+
+func statusBody(msgs []statusMsg) string {
+	var parts []string
+	for _, m := range msgs {
+		parts = append(parts, m.Messages...)
+	}
+	return strings.Join(parts, "; ")
+}
+
+func appLink(p payload, suffix string) string {
+	if p.ApplicationURL == "" {
+		return ""
+	}
+	return strings.TrimRight(p.ApplicationURL, "/") + suffix
+}
+
+// humanizeBytes renders a byte count as "11.2 GB", matching the repo's small
+// local-formatter idiom rather than pulling a dependency.
+func humanizeBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
 func putIf(m map[string]string, k, v string) {
 	if v != "" {
 		m[k] = v
 	}
 }
+

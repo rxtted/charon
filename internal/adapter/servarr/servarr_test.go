@@ -93,3 +93,42 @@ func TestRejectsGarbage(t *testing.T) {
 		t.Fatal("expected error on malformed body")
 	}
 }
+
+const manualBody = `{"movie":{"title":"The Matrix","year":1999},"downloadInfo":{"quality":"Bluray-1080p","size":12008442000},"downloadClient":"qBittorrent","downloadClientType":"qBittorrent","downloadId":"ABCD1234","downloadStatus":"Warning","downloadStatusMessages":[{"title":"The.Matrix.1999","messages":["Found archive file, might need to be extracted"]}],"release":{"releaseTitle":"The.Matrix.1999.1080p.BluRay.x264-GROUP","indexer":"My Indexer (Prowlarr)","size":12008442000},"eventType":"ManualInteractionRequired","instanceName":"Radarr","applicationUrl":"https://radarr.example.com"}`
+
+const importBody = `{"movie":{"title":"The Matrix"},"isUpgrade":false,"downloadClient":"qBittorrent","downloadId":"ABCD1234","eventType":"Download","instanceName":"Radarr","applicationUrl":"https://radarr.example.com"}`
+
+func TestManualInteractionFires(t *testing.T) {
+	e := match(t, "/radarr", manualBody)[0]
+	if e.Status != event.Firing || e.Kind != event.Alert || e.Channel != "media" {
+		t.Fatalf("bad routing: %+v", e)
+	}
+	if e.DedupKey != "radarr:manual:ABCD1234" {
+		t.Fatalf("dedup = %q", e.DedupKey)
+	}
+	if e.Title != "Manual interaction required: The Matrix" {
+		t.Fatalf("title = %q", e.Title)
+	}
+	if !strings.Contains(e.Body, "Found archive file") {
+		t.Fatalf("body = %q", e.Body)
+	}
+	if e.Labels["quality"] != "Bluray-1080p" || e.Labels["client"] != "qBittorrent" || e.Labels["size"] != "11.2 GB" {
+		t.Fatalf("labels = %v", e.Labels)
+	}
+	if e.Labels["indexer"] != "My Indexer (Prowlarr)" || e.Labels["release"] == "" {
+		t.Fatalf("labels missing release/indexer: %v", e.Labels)
+	}
+}
+
+func TestDownloadResolvesManualKey(t *testing.T) {
+	e := match(t, "/radarr", importBody)[0]
+	if e.Status != event.Resolved || e.DedupKey != "radarr:manual:ABCD1234" {
+		t.Fatalf("download should resolve the manual key: %+v", e)
+	}
+}
+
+func TestManualDroppedOnProwlarr(t *testing.T) {
+	if evs := match(t, "/prowlarr", manualBody); evs != nil {
+		t.Fatalf("prowlarr has no manual-interaction, want drop, got %+v", evs)
+	}
+}
