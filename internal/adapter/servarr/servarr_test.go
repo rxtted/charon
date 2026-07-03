@@ -172,3 +172,12 @@ func TestLidarrDownloadDropped(t *testing.T) {
 		t.Fatalf("lidarr Download should drop, got %+v", evs)
 	}
 }
+
+func TestDropsTestEvent(t *testing.T) {
+	// the arr Test button sends eventType "Test" with a body that need not fit the
+	// mapping struct (here release is a string where a real event has an object).
+	// it must drop to 202, not 400 on the shape. match() fatals if Match errors.
+	if evs := match(t, "/radarr", `{"eventType":"Test","instanceName":"Radarr","release":"test string"}`); evs != nil {
+		t.Fatalf("Test event should produce no card, got %+v", evs)
+	}
+}

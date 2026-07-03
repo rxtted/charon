@@ -45,19 +45,43 @@ func (a Adapter) Match(r *http.Request) ([]event.Event, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", adapter.ErrNotMatched, err)
 	}
+	// read the event type first and drop anything we don't map (a grab, the arr's
+	// built-in test button, and so on) before the full parse. that test payload
+	// doesn't fit the mapping struct, and an event we'd discard shouldn't 400 on it.
+	var head struct {
+		EventType string `json:"eventType"`
+	}
+	if err := json.Unmarshal(body, &head); err != nil {
+		return nil, fmt.Errorf("%w: %w", adapter.ErrNotMatched, err)
+	}
+	if head.EventType == "" {
+		return nil, fmt.Errorf("%w: no eventType", adapter.ErrNotMatched)
+	}
+	if !mappable(head.EventType) {
+		return nil, nil // recognized source, unmapped event: 202, no card
+	}
 	var p payload
 	if err := json.Unmarshal(body, &p); err != nil {
 		return nil, fmt.Errorf("%w: %w", adapter.ErrNotMatched, err)
 	}
-	if p.EventType == "" {
-		return nil, fmt.Errorf("%w: no eventType", adapter.ErrNotMatched)
-	}
 	ev, ok := a.mapEvent(p)
 	if !ok {
-		return nil, nil // recognized but not surfaced (a success, or an app that lacks this event)
+		return nil, nil // an app that lacks this event (a Download on prowlarr)
 	}
 	ev.Normalize()
 	return []event.Event{ev}, nil
+}
+
+// mappable is the coarse gate over event types the adapter ever maps, checked
+// before the full parse so an unmapped payload (the Test button) can't 400 on a
+// shape it never needed to fit. per-app routing stays in mapEvent.
+func mappable(eventType string) bool {
+	switch eventType {
+	case "Health", "HealthRestored", "ManualInteractionRequired", "Download", "DownloadFailure", "ImportFailure":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a Adapter) mapEvent(p payload) (event.Event, bool) {
